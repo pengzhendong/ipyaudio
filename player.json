@@ -13,7 +13,6 @@
   "plugins": [
     "hover",
     "minimap",
-    "record",
     "timeline",
     "zoom"
   ],
@@ -31,7 +30,6 @@
       "progressColor": "#9999",
       "waveColor": "#DDDD"
     },
-    "record": {},
     "spectrogram": {
       "colorMap": "roseus",
       "fftSamples": 2048,
