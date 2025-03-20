@@ -1,4 +1,23 @@
-.custom-widget {
-  background-color: lightseagreen;
-  padding: 0px 2px;
+.waveform {
+  background-color: black;
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+}
+
+.duration, .time {
+  background: rgba(0, 0, 0, 0.75);
+  color: #DDDD;
+  font-size: 11px;
+  position: absolute;
+  bottom: 0;
+  z-index: 11;
+}
+
+.duration {
+  right: 0;
+}
+
+.time {
+  left: 0;
 }
