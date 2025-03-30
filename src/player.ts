@@ -5,7 +5,7 @@ import merge from 'lodash/merge'
 import { DOMWidgetModel, DOMWidgetView, ISerializers } from '@jupyter-widgets/base'
 
 import { MODULE_NAME, MODULE_VERSION } from './version'
-import WaveSurfer from './wavesurfer'
+import Player from './wavesurfer/player'
 
 // Import the CSS
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -39,7 +39,7 @@ export class PlayerModel extends DOMWidgetModel {
 }
 
 export class PlayerView extends DOMWidgetView {
-  private _player: WaveSurfer
+  private _player: Player
 
   render() {
     super.render()
@@ -48,7 +48,7 @@ export class PlayerView extends DOMWidgetView {
         isStreaming: this.model.get('is_streaming'),
         language: this.model.get('language'),
       }
-      this._player = WaveSurfer.create(merge({}, this.model.get('config'), config))
+      this._player = Player.create(merge({}, this.model.get('config'), config))
       this.el.appendChild(this._player.el)
       this.model.on('change:audio', () => {
         this._player.sampleRate = this.model.get('rate')

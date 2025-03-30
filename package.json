@@ -51,6 +51,7 @@
   "dependencies": {
     "@jupyter-widgets/base": "^1.1.10 || ^2 || ^3 || ^4 || ^5 || ^6",
     "bootstrap": "^5.3.3",
+    "jupyter-dataserializers": "^3.0.1",
     "lodash.merge": "^4.6.2"
   },
   "devDependencies": {
@@ -99,5 +100,6 @@
         "singleton": true
       }
     }
-  }
+  },
+  "packageManager": "yarn@4.8.1"
 }

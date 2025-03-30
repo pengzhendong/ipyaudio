@@ -27,5 +27,7 @@ def play(
     Player(audio, rate, config, language, verbose).play()
 
 
-def record(config: dict = {}, language: str = "en", verbose: bool = False):
-    Recorder(config, language, verbose).record()
+def record(
+    filename: str = None, config: dict = {}, player_config: dict = {}, language: str = "en", verbose: bool = False
+):
+    Recorder(filename, config, player_config, language, verbose)

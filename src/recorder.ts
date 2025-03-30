@@ -2,10 +2,11 @@
 // Distributed under the terms of the Modified BSD License.
 
 import merge from 'lodash/merge'
+import { simplearray_serialization } from 'jupyter-dataserializers'
 import { DOMWidgetModel, DOMWidgetView, ISerializers } from '@jupyter-widgets/base'
 
 import { MODULE_NAME, MODULE_VERSION } from './version'
-import WaveSurfer from './wavesurfer'
+import Recorder from './wavesurfer/recorder'
 
 // Import the CSS
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -22,12 +23,17 @@ export class RecorderModel extends DOMWidgetModel {
       _view_name: RecorderModel.view_name,
       _view_module: RecorderModel.view_module,
       _view_module_version: RecorderModel.view_module_version,
+
+      chunk: new Uint8Array(0),
+      rate: 16000,
+      end: false,
     }
   }
 
   static serializers: ISerializers = {
     ...DOMWidgetModel.serializers,
     // Add any extra serializers here
+    chunk: simplearray_serialization as any,
   }
 
   static model_name = 'RecorderModel'
@@ -39,17 +45,35 @@ export class RecorderModel extends DOMWidgetModel {
 }
 
 export class RecorderView extends DOMWidgetView {
-  private _recorder: WaveSurfer
+  private _recorder: Recorder
 
   render() {
     super.render()
     this.displayed.then(async () => {
-      this._recorder = WaveSurfer.create(
-        merge({}, this.model.get('config'), {
-          language: this.model.get('language'),
-        }),
+      const language = this.model.get('language')
+      this._recorder = Recorder.create(
+        merge({}, this.model.get('config'), { language }),
+        merge({}, this.model.get('player_config'), { language }),
       )
       this.el.appendChild(this._recorder.el)
+      this._recorder.onRecordStart(() => {
+        this.model.set('end', false)
+        this.model.set('rate', this._recorder.sampleRate)
+        this.model.save_changes()
+      })
+      this._recorder.onRecordChunk(async (blob) => {
+        const arrayBuffer = await blob.arrayBuffer()
+        const audioData = new Uint8Array(arrayBuffer)
+        this.model.set('chunk', {
+          array: audioData,
+          shape: [audioData.length],
+        })
+        this.model.save_changes()
+      })
+      this._recorder.onRecordEnd(async (blob) => {
+        this.model.set('end', true)
+        this.model.save_changes()
+      })
     })
   }
 }

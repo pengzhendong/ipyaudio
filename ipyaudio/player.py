@@ -23,6 +23,8 @@ from traitlets import Bool, Dict, Float, Int, Unicode
 from ._frontend import module_name, module_version
 from .utils import encode, merge_dicts
 
+DIRNAME = os.path.dirname(__file__)
+
 
 @register
 class Player(DOMWidget, ValueWidget):
@@ -34,9 +36,7 @@ class Player(DOMWidget, ValueWidget):
     _view_module = Unicode(module_name).tag(sync=True)
     _view_module_version = Unicode(module_version).tag(sync=True)
 
-    _audio = None
-    _config_path = os.path.join(os.path.dirname(__file__), "../player.json")
-    config = Dict(json.load(open(_config_path))).tag(sync=True)
+    config = Dict(json.load(open(os.path.join(DIRNAME, "../player.json")))).tag(sync=True)
     audio = Unicode("").tag(sync=True)
     rate = Int(16000).tag(sync=True)
     is_streaming = Bool(False).tag(sync=True)
@@ -67,17 +67,17 @@ class Player(DOMWidget, ValueWidget):
             self.duration = 0
             self.latency_label = Label()
             self.rtf_label = Label()
-            self.observe(self._update_latency_label, names="latency")
-            self.observe(self._update_rtf_label, names="rtf")
+            self.observe(self._on_latency_change, names="latency")
+            self.observe(self._on_rtf_change, names="rtf")
             display(VBox([self, self.latency_label, self.rtf_label]))
         else:
             display(self)
 
-    def _update_latency_label(self, change):
+    def _on_latency_change(self, change):
         label = "延迟" if self.language == "zh" else "Latency"
         self.latency_label.value = f"{label}: {self.latency} ms"
 
-    def _update_rtf_label(self, change):
+    def _on_rtf_change(self, change):
         label = "实时率" if self.language == "zh" else "Real-Time Factor"
         self.rtf_label.value = f"{label}: {self.rtf:.2f}"
 

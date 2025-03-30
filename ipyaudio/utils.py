@@ -10,6 +10,7 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
+from audiolab import filters, load_audio
 from IPython.display import Audio
 from lhotse import Recording
 from lhotse.cut.base import Cut
@@ -18,22 +19,23 @@ from lhotse.cut.base import Cut
 def encode(
     audio: Union[str, Path, np.ndarray, torch.Tensor, Cut, Recording],
     rate: Optional[int] = None,
-    with_header: bool = True,
+    make_wav: bool = True,
 ):
     """Transform an audio to a PCM bytestring"""
     if isinstance(audio, (str, Path)):
-        if audio.startswith(("http://", "https://")):
-            return audio, rate or 16000
-        audio = Recording.from_file(audio)
+        aformat = filters.aformat(sample_fmts="flt", sample_rates=rate, channel_layouts="mono")
+        audio, rate = load_audio(audio, filters=[aformat])
     if isinstance(audio, (Cut, Recording)):
         if rate is not None:
             audio = audio.resample(rate)
         rate = audio.sampling_rate
         audio = audio.load_audio()
-    if with_header:
+    if make_wav:
         return Audio(audio, rate=rate).src_attr(), rate
-    audio = np.clip(audio, -1, 1)
-    audio, _ = Audio._validate_and_normalize_with_numpy(audio, False)
+    if audio.dtype == np.int16:
+        audio = audio.astype(np.float32) / 32768
+    # float32 to int16 bytes (Do not normalize for streaming chunks)
+    audio, _ = Audio._validate_and_normalize_with_numpy(np.clip(audio, -1, 1), False)
     return base64.b64encode(audio).decode("ascii"), rate
 
 
