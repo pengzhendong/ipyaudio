@@ -9,6 +9,7 @@ include .coverage.rc
 include tsconfig.json
 include package.json
 include webpack.config.js
+include ipyaudio/configs/*.json
 include ipyaudio/labextension/*.tgz
 
 # Documentation

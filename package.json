@@ -1,6 +1,6 @@
 {
   "name": "ipyaudio",
-  "version": "0.1.0",
+  "version": "0.1.9",
   "description": "A Custom Jupyter Widget Library",
   "keywords": [
     "jupyter",
@@ -26,7 +26,7 @@
   "types": "./lib/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pengzhendong/ipyaudio"
+    "url": "git+https://github.com/pengzhendong/ipyaudio.git"
   },
   "scripts": {
     "build": "jlpm run build:lib && jlpm run build:nbextension && jlpm run build:labextension:dev",

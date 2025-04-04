@@ -5,11 +5,11 @@
 # Distributed under the terms of the Modified BSD License.
 
 import json
-import os
 from functools import partial
+from importlib.resources import files
 
 import numpy as np
-from audiolab import StreamReader, filters, Writer
+from audiolab import StreamReader, Writer, filters
 from ipydatawidgets import NDArray, array_serialization, shape_constraints
 from IPython.display import display
 from ipywidgets import DOMWidget, ValueWidget, register
@@ -17,8 +17,6 @@ from traitlets import Bool, Dict, Int, Unicode
 
 from ._frontend import module_name, module_version
 from .utils import merge_dicts
-
-DIRNAME = os.path.dirname(__file__)
 
 
 @register
@@ -31,12 +29,18 @@ class Recorder(DOMWidget, ValueWidget):
     _view_module = Unicode(module_name).tag(sync=True)
     _view_module_version = Unicode(module_version).tag(sync=True)
 
-    config = Dict(json.load(open(os.path.join(DIRNAME, "../recorder.json")))).tag(sync=True)
-    player_config = Dict(json.load(open(os.path.join(DIRNAME, "../player.json")))).tag(sync=True)
+    config = json.loads(files("ipyaudio.configs").joinpath("recorder.json").read_text(encoding="utf-8"))
+    player_config = json.loads(files("ipyaudio.configs").joinpath("player.json").read_text(encoding="utf-8"))
+    config = Dict(config).tag(sync=True)
+    player_config = Dict(player_config).tag(sync=True)
     language = Unicode("en").tag(sync=True)
 
     chunk = NDArray(dtype=np.uint8, default_value=np.zeros((0,), dtype=np.uint8))
-    chunk = chunk.tag(sync=True, **array_serialization).valid(shape_constraints(None,))
+    chunk = chunk.tag(sync=True, **array_serialization).valid(
+        shape_constraints(
+            None,
+        )
+    )
     frame = NDArray(dtype=np.float32, default_value=np.zeros((1, 0), dtype=np.float32))
     frame = frame.tag(sync=True, **array_serialization).valid(shape_constraints(None, None))
     rate = Int(16000).tag(sync=True)

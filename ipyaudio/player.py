@@ -6,8 +6,8 @@
 
 import asyncio
 import json
-import os
 import time
+from importlib.resources import files
 from pathlib import Path
 from types import AsyncGeneratorType, GeneratorType
 from typing import Optional, Union
@@ -23,8 +23,6 @@ from traitlets import Bool, Dict, Float, Int, Unicode
 from ._frontend import module_name, module_version
 from .utils import encode, merge_dicts
 
-DIRNAME = os.path.dirname(__file__)
-
 
 @register
 class Player(DOMWidget, ValueWidget):
@@ -36,7 +34,8 @@ class Player(DOMWidget, ValueWidget):
     _view_module = Unicode(module_name).tag(sync=True)
     _view_module_version = Unicode(module_version).tag(sync=True)
 
-    config = Dict(json.load(open(os.path.join(DIRNAME, "../player.json")))).tag(sync=True)
+    config = json.loads(files("ipyaudio.configs").joinpath("player.json").read_text(encoding="utf-8"))
+    config = Dict(config).tag(sync=True)
     audio = Unicode("").tag(sync=True)
     rate = Int(16000).tag(sync=True)
     is_streaming = Bool(False).tag(sync=True)
