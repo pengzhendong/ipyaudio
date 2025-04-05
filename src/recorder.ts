@@ -62,12 +62,8 @@ export class RecorderView extends DOMWidgetView {
         this.model.save_changes()
       })
       this._recorder.onRecordChunk(async (blob) => {
-        const arrayBuffer = await blob.arrayBuffer()
-        const audioData = new Uint8Array(arrayBuffer)
-        this.model.set('chunk', {
-          array: audioData,
-          shape: [audioData.length],
-        })
+        const audioData = new Uint8Array(await blob.arrayBuffer())
+        this.model.set('chunk', { array: audioData, shape: [audioData.length] })
         this.model.save_changes()
       })
       this._recorder.onRecordEnd(async (blob) => {
