@@ -34,16 +34,16 @@ class Player(DOMWidget, ValueWidget):
     _view_module = Unicode(module_name).tag(sync=True)
     _view_module_version = Unicode(module_version).tag(sync=True)
 
-    config = json.loads(files("ipyaudio.configs").joinpath("player.json").read_text(encoding="utf-8"))
-    config = Dict(config).tag(sync=True)
+    config = Dict({}).tag(sync=True)
+    language = Unicode("en").tag(sync=True)
+    verbose = Bool(False).tag(sync=True)
+
     audio = Unicode("").tag(sync=True)
     rate = Int(16000).tag(sync=True)
     is_streaming = Bool(False).tag(sync=True)
     is_done = Bool(False).tag(sync=True)
-    language = Unicode("en").tag(sync=True)
     latency = Int(0).tag(sync=True)
     rtf = Float(0).tag(sync=True)
-    verbose = Bool(False).tag(sync=True)
 
     def __init__(
         self,
@@ -55,13 +55,15 @@ class Player(DOMWidget, ValueWidget):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        config_path = files("ipyaudio.configs").joinpath("player.json")
+        self.config = merge_dicts(json.loads(config_path.read_text(encoding="utf-8")), config)
+        self.language = language.lower()
+        self.verbose = verbose
+
         self._audio = audio
         if rate is not None:
             self.rate = rate
-        self.config = merge_dicts(self.config, config)
         self.is_streaming = isinstance(audio, (AsyncGeneratorType, GeneratorType))
-        self.language = language.lower()
-        self.verbose = verbose
         if self.is_streaming and self.verbose:
             self.duration = 0
             self.latency_label = Label()

@@ -46,6 +46,21 @@ export class RecorderModel extends DOMWidgetModel {
 
 export class RecorderView extends DOMWidgetView {
   private _recorder: Recorder
+  private _chunks: Uint8Array[] = []
+  private _isFirstChunk = true
+  private _isCompleted = false
+
+  private _sendChunk() {
+    if (this._chunks.length > 0) {
+      const chunk = this._chunks[0]
+      this.model.set('chunk', { array: chunk, shape: [chunk.length] })
+      this.model.save_changes()
+      this._chunks.shift()
+    } else if (this._isCompleted) {
+      this.model.set('completed', true)
+      this.model.save_changes()
+    }
+  }
 
   render() {
     super.render()
@@ -56,23 +71,38 @@ export class RecorderView extends DOMWidgetView {
         merge({}, this.model.get('player_config'), { language }),
       )
       this.el.appendChild(this._recorder.el)
+
+      this.model.on('msg:custom', async (msg: any) => {
+        // 3 seconds maximum wait time
+        const maxWaitTime = 3000 + (this._recorder.timeSlice ?? 32)
+        const startTime = Date.now()
+        if (msg.msg_type === 'chunk_received') {
+          // Wait for a recording chunk to send to backend
+          while (this._chunks.length === 0 && Date.now() - startTime < maxWaitTime) {
+            await new Promise((resolve) => setTimeout(resolve, 32))
+          }
+          this._sendChunk()
+        }
+      })
+
       this._recorder.onRecordStart(() => {
-        this.model.set('end', false)
+        this._isCompleted = false
+        this._isFirstChunk = true
+        this.model.set('completed', false)
         this.model.set('rate', this._recorder.sampleRate)
         this.model.save_changes()
       })
+
       this._recorder.onRecordChunk(async (blob) => {
-        const arrayBuffer = await blob.arrayBuffer()
-        const audioData = new Uint8Array(arrayBuffer)
-        this.model.set('chunk', {
-          array: audioData,
-          shape: [audioData.length],
-        })
-        this.model.save_changes()
+        this._chunks.push(new Uint8Array(await blob.arrayBuffer()))
+        if (this._isFirstChunk) {
+          this._isFirstChunk = false
+          this._sendChunk()
+        }
       })
+
       this._recorder.onRecordEnd(async (blob) => {
-        this.model.set('end', true)
-        this.model.save_changes()
+        this._isCompleted = true
       })
     })
   }

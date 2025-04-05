@@ -39,6 +39,10 @@ export default class Recorder {
     return this._wavesurfer.options.sampleRate
   }
 
+  get timeSlice() {
+    return this._config.recordOptions?.mediaRecorderTimeslice
+  }
+
   set sampleRate(rate: number) {
     this._wavesurfer.options.sampleRate = rate
     this._player.sampleRate = rate
@@ -108,9 +112,6 @@ export default class Recorder {
     this._recordButton.onclick = () => {
       if (this._recorder.isRecording() || this._recorder.isPaused()) {
         this._recorder.stopRecording()
-        this._pauseButton.disabled = true
-        this._pauseButton.innerHTML = '<i class="fa fa-play"></i>'
-        this._recordButton.innerHTML = '<i class="fa fa-microphone"></i>'
         this._container.style.display = 'none'
         this._player.el.style.display = 'block'
       } else {
@@ -118,6 +119,8 @@ export default class Recorder {
         this.sampleRate = parseInt(this._rateSelect.value)
         this._recorder.startRecording({ deviceId: this._micSelect.value }).then(() => {
           this._pauseButton.disabled = false
+          this._rateSelect.disabled = true
+          this._micSelect.disabled = true
           this._pauseButton.innerHTML = '<i class="fa fa-pause"></i>'
           this._recordButton.innerHTML = '<i class="fa fa-stop"></i>'
           this._container.style.display = 'block'
@@ -139,10 +142,18 @@ export default class Recorder {
     })
   }
 
-  onRecordEnd(callback: (blob: Blob) => void) {
-    this._recorder.on('record-end', (blob) => {
+  onRecordEnd(callback: (blob: Blob) => Promise<void>) {
+    this._recorder.on('record-end', async (blob) => {
       this._player.load(URL.createObjectURL(blob))
-      callback(blob)
+      this._recordButton.disabled = true
+      this._pauseButton.disabled = true
+      await callback(blob)
+      this._recordButton.disabled = false
+      this._pauseButton.disabled = true
+      this._rateSelect.disabled = false
+      this._micSelect.disabled = false
+      this._pauseButton.innerHTML = '<i class="fa fa-play"></i>'
+      this._recordButton.innerHTML = '<i class="fa fa-microphone"></i>'
     })
   }
 
