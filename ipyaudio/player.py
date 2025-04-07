@@ -14,6 +14,7 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
+from audiolab import encode
 from IPython.display import display
 from ipywidgets import DOMWidget, Label, ValueWidget, VBox, register
 from lhotse import Recording
@@ -21,7 +22,7 @@ from lhotse.cut.base import Cut
 from traitlets import Bool, Dict, Float, Int, Unicode
 
 from ._frontend import module_name, module_version
-from .utils import encode, merge_dicts
+from .utils import merge_dicts
 
 
 @register
@@ -88,7 +89,7 @@ class Player(DOMWidget, ValueWidget):
                 self.latency = int((time.time() - start) * 1000)
             self.duration += chunk.shape[1] / rate
             self.rtf = (time.time() - start) / self.duration
-        self.audio, self.rate = encode(chunk, rate, False)
+        self.audio, self.rate = encode(chunk, rate, make_wav=False)
 
     async def async_encode(self, audio: AsyncGeneratorType, rate: int, start: float):
         async for idx, chunk in enumerate(audio):
