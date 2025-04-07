@@ -83,7 +83,13 @@ class Recorder(DOMWidget, ValueWidget):
         else:
             display(self)
 
-    def _calculate_rtf(self):
+    def _log_chunk(self, chunk):
+        chunk_bytes = chunk.shape[0]
+        recieved_bytes = self.stream_reader.bytestream.getbuffer().nbytes
+        decoded_seconds = self.audio.shape[1] / self.rate
+        self.output_label.value = "Chunk received" if self.language == "en" else "收到数据"
+        self.output_label.value += f": {chunk_bytes}B/{recieved_bytes / 1024:.2f}KB ({decoded_seconds:.2f}s)."
+
         label = "实时率" if self.language == "zh" else "Real-Time Factor"
         if self.audio.shape[1] > 0:
             cost_time = time() - self.start
@@ -91,14 +97,6 @@ class Recorder(DOMWidget, ValueWidget):
             self.rtf_label.value = f"{label}: {cost_time / decoded_seconds:.2f}"
         else:
             self.rtf_label.value = f"{label}: 0.00"
-
-    def _log_chunk(self, chunk):
-        chunk_bytes = chunk.shape[0]
-        recieved_bytes = self.stream_reader.bytestream.getbuffer().nbytes
-        decoded_seconds = self.audio.shape[1] / self.rate
-        self.output_label.value = "Chunk received" if self.language == "en" else "收到数据"
-        self.output_label.value += f": {chunk_bytes}B/{recieved_bytes / 1024:.2f}KB ({decoded_seconds:.2f}s)."
-        self._calculate_rtf()
 
     def _on_chunk_change(self, change):
         # The comm API is a symmetric, asynchronous, `fire and forget` style messaging API.
