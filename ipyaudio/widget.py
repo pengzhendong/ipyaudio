@@ -4,6 +4,7 @@
 # Copyright (c) Zhendong Peng.
 # Distributed under the terms of the Modified BSD License.
 
+import time
 from pathlib import Path
 from types import AsyncGeneratorType, GeneratorType
 from typing import Optional, Union
@@ -24,7 +25,10 @@ def play(
     language: str = "en",
     verbose: bool = False,
 ):
-    Player(audio, rate, config, language, verbose).play()
+    player = Player(audio, rate, config, language, verbose)
+    # Wait for the player to be initialized
+    time.sleep(0.1)
+    player.play()
 
 
 def record(

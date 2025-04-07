@@ -95,7 +95,7 @@ export class RecorderView extends DOMWidgetView {
 
       this._recorder.onRecordChunk(async (blob) => {
         this._chunks.push(new Uint8Array(await blob.arrayBuffer()))
-        if (this._isFirstChunk) {
+        if (this.model.get('sync') && this._isFirstChunk) {
           this._isFirstChunk = false
           this._sendChunk()
         }
@@ -103,6 +103,10 @@ export class RecorderView extends DOMWidgetView {
 
       this._recorder.onRecordEnd(async (blob) => {
         this._isCompleted = true
+        if (!this.model.get('sync')) {
+          this.model.set('completed', true)
+          this.model.save_changes()
+        }
       })
     })
   }

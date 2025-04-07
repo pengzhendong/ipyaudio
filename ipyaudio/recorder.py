@@ -32,6 +32,7 @@ class Recorder(DOMWidget, ValueWidget):
 
     config = Dict({}).tag(sync=True)
     player_config = Dict({}).tag(sync=True)
+    sync = Bool(False).tag(sync=True)
     language = Unicode("en").tag(sync=True)
     verbose = Bool(False).tag(sync=True)
 
@@ -54,6 +55,7 @@ class Recorder(DOMWidget, ValueWidget):
         filename: str = None,
         config: dict = {},
         player_config: dict = {},
+        sync: bool = False,
         language: str = "en",
         verbose: bool = False,
         **kwargs,
@@ -63,6 +65,7 @@ class Recorder(DOMWidget, ValueWidget):
         player_config_path = files("ipyaudio.configs").joinpath("player.json")
         self.config = merge_dicts(json.loads(config_path.read_text(encoding="utf-8")), config)
         self.player_config = merge_dicts(json.loads(player_config_path.read_text(encoding="utf-8")), player_config)
+        self.sync = sync
         self.language = language.lower()
         self.verbose = verbose
         self.start = time()
@@ -76,7 +79,7 @@ class Recorder(DOMWidget, ValueWidget):
         self.observe(self._on_chunk_change, names="chunk")
         self.observe(self._on_completed_change, names="completed")
         self.observe(self._on_rate_change, names="rate")
-        if self.verbose:
+        if self.sync and self.verbose:
             self.output_label = Label()
             self.rtf_label = Label()
             display(VBox([self, self.output_label, self.rtf_label]))
@@ -89,7 +92,6 @@ class Recorder(DOMWidget, ValueWidget):
         decoded_seconds = self.audio.shape[1] / self.rate
         self.output_label.value = "Chunk received" if self.language == "en" else "收到数据"
         self.output_label.value += f": {chunk_bytes}B/{recieved_bytes / 1024:.2f}KB ({decoded_seconds:.2f}s)."
-
         label = "实时率" if self.language == "zh" else "Real-Time Factor"
         if self.audio.shape[1] > 0:
             cost_time = time() - self.start
@@ -103,27 +105,32 @@ class Recorder(DOMWidget, ValueWidget):
         # Sends a message to the frontend to indicate that a chunk has been received.
         self.send({"msg_type": "chunk_received"})
 
-        self._log_chunk(change["new"])
-        self.stream_reader.push(change["new"].tobytes())
-        for frame, _ in self.stream_reader.pull():
-            self.audio = np.concatenate((self.audio, frame), axis=1)
-            self.frame = frame
-
-    def _on_completed_change(self, change):
-        self.output_label.value = "Completed" if self.language == "en" else "完成"
-        if not change["new"]:
-            self.start = time()
-            self.output_label.value = "Start recording." if self.language == "en" else "开始录音."
-            self.audio = np.zeros((1, 0), dtype=np.float32)
-            self.stream_reader.reset()
-        else:
-            self.output_label.value = "End recording." if self.language == "en" else "结束录音."
-            for frame, _ in self.stream_reader.pull(partial=True):
+        if self.sync:
+            if self.verbose:
+                self._log_chunk(change["new"])
+            self.stream_reader.push(change["new"].tobytes())
+            for frame, _ in self.stream_reader.pull():
                 self.audio = np.concatenate((self.audio, frame), axis=1)
                 self.frame = frame
-            if self.writer is not None:
-                self.writer.write(self.audio)
-                self.writer.close()
+
+    def _on_completed_change(self, change):
+        if not change["new"]:
+            if self.sync:
+                if self.verbose:
+                    self.output_label.value = "Start recording." if self.language == "en" else "开始录音."
+                self.start = time()
+                self.audio = np.zeros((1, 0), dtype=np.float32)
+                self.stream_reader.reset()
+        else:
+            if self.sync:
+                if self.verbose:
+                    self.output_label.value = "End recording." if self.language == "en" else "结束录音."
+                for frame, _ in self.stream_reader.pull(partial=True):
+                    self.audio = np.concatenate((self.audio, frame), axis=1)
+                    self.frame = frame
+                if self.writer is not None:
+                    self.writer.write(self.audio)
+                    self.writer.close()
 
     def _on_rate_change(self, change):
         self.stream_reader.filters = [self.aformat(sample_rates=self.rate)]
