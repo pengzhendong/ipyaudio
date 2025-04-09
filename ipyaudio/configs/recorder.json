@@ -8,6 +8,6 @@
     "renderRecordedAudio": false,
     "scrollingWaveform": true,
     "scrollingWaveformWindow": 10,
-    "mediaRecorderTimeslice": 32
+    "mediaRecorderTimeslice": 20
   }
 }

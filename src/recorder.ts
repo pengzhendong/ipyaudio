@@ -6,6 +6,7 @@ import { simplearray_serialization } from 'jupyter-dataserializers'
 import { DOMWidgetModel, DOMWidgetView, ISerializers } from '@jupyter-widgets/base'
 
 import { MODULE_NAME, MODULE_VERSION } from './version'
+import ChunkQueue from './chunk_queue'
 import Recorder from './wavesurfer/recorder'
 
 // Import the CSS
@@ -46,16 +47,18 @@ export class RecorderModel extends DOMWidgetModel {
 
 export class RecorderView extends DOMWidgetView {
   private _recorder: Recorder
-  private _chunks: Uint8Array[] = []
+  private _chunks: ChunkQueue = new ChunkQueue()
   private _isFirstChunk = true
   private _isCompleted = false
 
-  private _sendChunk() {
+  private async _sendChunk() {
     if (this._chunks.length > 0) {
-      const chunk = this._chunks[0]
-      this.model.set('chunk', { array: chunk, shape: [chunk.length] })
-      this.model.save_changes()
-      this._chunks.shift()
+      // 1 seconds maximum wait time
+      const chunk = await this._chunks.dequeue(1000 + (this._recorder.timeSlice ?? 20))
+      if (chunk.length > 0) {
+        this.model.set('chunk', { array: chunk, shape: [chunk.length] })
+        this.model.save_changes()
+      }
     } else if (this._isCompleted) {
       this.model.set('completed', true)
       this.model.save_changes()
@@ -73,14 +76,7 @@ export class RecorderView extends DOMWidgetView {
       this.el.appendChild(this._recorder.el)
 
       this.model.on('msg:custom', async (msg: any) => {
-        // 3 seconds maximum wait time
-        const maxWaitTime = 3000 + (this._recorder.timeSlice ?? 32)
-        const startTime = Date.now()
         if (msg.msg_type === 'chunk_received') {
-          // Wait for a recording chunk to send to backend
-          while (this._chunks.length === 0 && Date.now() - startTime < maxWaitTime) {
-            await new Promise((resolve) => setTimeout(resolve, 32))
-          }
           this._sendChunk()
         }
       })
@@ -94,7 +90,7 @@ export class RecorderView extends DOMWidgetView {
       })
 
       this._recorder.onRecordChunk(async (blob) => {
-        this._chunks.push(new Uint8Array(await blob.arrayBuffer()))
+        this._chunks.enqueue(new Uint8Array(await blob.arrayBuffer()))
         if (this.model.get('sync') && this._isFirstChunk) {
           this._isFirstChunk = false
           this._sendChunk()
