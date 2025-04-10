@@ -6,7 +6,6 @@
 
 import asyncio
 import json
-import time
 from importlib.resources import files
 from pathlib import Path
 from types import AsyncGeneratorType, GeneratorType
@@ -16,13 +15,14 @@ import numpy as np
 import torch
 from audiolab import encode
 from IPython.display import display
-from ipywidgets import DOMWidget, Label, ValueWidget, VBox, register
+from ipywidgets import HTML, DOMWidget, ValueWidget, VBox, register
 from lhotse import Recording
 from lhotse.cut.base import Cut
-from traitlets import Bool, Dict, Float, Int, Unicode
+from traitlets import Bool, Dict, Int, Unicode
 
 from ._frontend import module_name, module_version
-from .utils import merge_dicts
+from .timer import Timer
+from .utils import merge_dicts, table
 
 
 @register
@@ -43,8 +43,6 @@ class Player(DOMWidget, ValueWidget):
     rate = Int(16000).tag(sync=True)
     is_streaming = Bool(False).tag(sync=True)
     is_done = Bool(False).tag(sync=True)
-    latency = Int(0).tag(sync=True)
-    rtf = Float(0).tag(sync=True)
 
     def __init__(
         self,
@@ -67,43 +65,39 @@ class Player(DOMWidget, ValueWidget):
         self.is_streaming = isinstance(audio, (AsyncGeneratorType, GeneratorType))
         if self.is_streaming and self.verbose:
             self.duration = 0
-            self.latency_label = Label()
-            self.rtf_label = Label()
-            self.observe(self._on_latency_change, names="latency")
-            self.observe(self._on_rtf_change, names="rtf")
-            display(VBox([self, self.latency_label, self.rtf_label]))
+            self.html = HTML()
+            self.performance = {
+                "latency": ["延迟" if self.language == "zh" else "Latency", "0ms"],
+                "rtf": ["实时率" if self.language == "zh" else "Real-Time Factor", "0.00"],
+            }
+            self.html.value = table(self.performance)
+            display(VBox([self, self.html]))
         else:
             display(self)
 
-    def _on_latency_change(self, change):
-        label = "延迟" if self.language == "zh" else "Latency"
-        self.latency_label.value = f"{label}: {self.latency} ms"
-
-    def _on_rtf_change(self, change):
-        label = "实时率" if self.language == "zh" else "Real-Time Factor"
-        self.rtf_label.value = f"{label}: {self.rtf:.2f}"
-
-    def encode_chunk(self, start, idx, chunk, rate):
+    def encode_chunk(self, idx, chunk, rate, timer: Timer):
         if self.is_streaming and self.verbose:
             if idx == 0:
-                self.latency = int((time.time() - start) * 1000)
+                self.performance["latency"][1] = f"{int(timer.elapsed() * 1000)}ms"
             self.duration += chunk.shape[1] / rate
-            self.rtf = (time.time() - start) / self.duration
+            if self.duration > 0:
+                self.performance["rtf"][1] = round(timer.elapsed() / self.duration, 2)
+            self.html.value = table(self.performance)
         self.audio, self.rate = encode(chunk, rate, make_wav=False)
 
-    async def async_encode(self, audio: AsyncGeneratorType, rate: int, start: float):
+    async def async_encode(self, audio: AsyncGeneratorType, rate: int, timer: Timer):
         async for idx, chunk in enumerate(audio):
-            self.encode_chunk(start, idx, chunk, rate)
+            self.encode_chunk(idx, chunk, rate, timer)
 
     def play(self):
-        start = time.time()
+        timer = Timer(language=self.language)
         if isinstance(self._audio, (str, Path, np.ndarray, torch.Tensor, Cut, Recording)):
             # [num_channels, num_samples]
             self.audio, self.rate = encode(self._audio, self.rate)
         elif isinstance(self._audio, AsyncGeneratorType):
-            asyncio.create_task(self.async_encode(self._audio, self.rate, start))
+            asyncio.create_task(self.async_encode(self._audio, self.rate, timer))
             self.is_done = True
         else:
             for idx, chunk in enumerate(self._audio):
-                self.encode_chunk(start, idx, chunk, self.rate)
+                self.encode_chunk(idx, chunk, self.rate, timer)
             self.is_done = True
