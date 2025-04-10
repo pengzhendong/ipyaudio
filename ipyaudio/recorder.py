@@ -13,11 +13,12 @@ import numpy as np
 from audiolab import StreamReader, Writer, filters
 from ipydatawidgets import NDArray, array_serialization, shape_constraints
 from IPython.display import display
-from ipywidgets import DOMWidget, Label, ValueWidget, VBox, register
+from ipywidgets import HTML, DOMWidget, ValueWidget, VBox, register
 from traitlets import Bool, Dict, Int, Unicode
 
 from ._frontend import module_name, module_version
-from .utils import merge_dicts
+from .timer import Timer
+from .utils import merge_dicts, table
 
 
 @register
@@ -80,25 +81,30 @@ class Recorder(DOMWidget, ValueWidget):
         self.observe(self._on_completed_change, names="completed")
         self.observe(self._on_rate_change, names="rate")
         if self.sync and self.verbose:
-            self.output_label = Label()
-            self.rtf_label = Label()
-            display(VBox([self, self.output_label, self.rtf_label]))
+            self.html = HTML()
+            self.performance = {
+                "state": ["状态" if self.language == "zh" else "State", ""],
+                "chunk": ["接收数据" if self.language == "zh" else "Received Data", "0B/0.00KB"],
+                "audio": ["解码音频" if self.language == "zh" else "Decoded audio", "0.00s"],
+                "latency": ["延迟" if self.language == "zh" else "Latency", "0ms"],
+                "rtf": ["实时率" if self.language == "zh" else "Real-Time Factor", 0],
+            }
+            self.html.value = table(self.performance)
+            display(VBox([self, self.html]))
         else:
             display(self)
 
     def _log_chunk(self, chunk):
-        chunk_bytes = chunk.shape[0]
         recieved_bytes = self.stream_reader.bytestream.getbuffer().nbytes
-        decoded_seconds = self.audio.shape[1] / self.rate
-        self.output_label.value = "Chunk received" if self.language == "en" else "收到数据"
-        self.output_label.value += f": {chunk_bytes}B/{recieved_bytes / 1024:.2f}KB ({decoded_seconds:.2f}s)."
-        label = "实时率" if self.language == "zh" else "Real-Time Factor"
-        if self.audio.shape[1] > 0:
-            cost_time = time() - self.start
-            decoded_seconds = self.audio.shape[1] / self.rate
-            self.rtf_label.value = f"{label}: {cost_time / decoded_seconds:.2f}"
+        decoded_audio_seconds = self.audio.shape[1] / self.rate
+        self.performance["chunk"][1] = f"{chunk.shape[0]}B/{recieved_bytes / 1024:.2f}KB"
+        self.performance["audio"][1] = f"{decoded_audio_seconds:.2f}s"
+        self.performance["latency"][1] = f"{int((self.timer.elapsed() - decoded_audio_seconds) * 1000)}ms"
+        if decoded_audio_seconds > 0:
+            self.performance["rtf"][1] = round(self.timer.elapsed() / decoded_audio_seconds, 2)
         else:
-            self.rtf_label.value = f"{label}: 0.00"
+            self.performance["rtf"][1] = 0.00
+        self.html.value = table(self.performance)
 
     def _on_chunk_change(self, change):
         # The comm API is a symmetric, asynchronous, `fire and forget` style messaging API.
@@ -117,14 +123,16 @@ class Recorder(DOMWidget, ValueWidget):
         if not change["new"]:
             if self.sync:
                 if self.verbose:
-                    self.output_label.value = "Start recording." if self.language == "en" else "开始录音."
-                self.start = time()
+                    self.performance["state"][1] = "Start recording" if self.language == "en" else "开始录音"
+                    self.html.value = table(self.performance)
+                self.timer = Timer(language=self.language)
                 self.audio = np.zeros((1, 0), dtype=np.float32)
                 self.stream_reader.reset()
         else:
             if self.sync:
                 if self.verbose:
-                    self.output_label.value = "End recording." if self.language == "en" else "结束录音."
+                    self.performance["state"][1] = "End recording" if self.language == "en" else "结束录音"
+                    self.html.value = table(self.performance)
                 for frame, _ in self.stream_reader.pull(partial=True):
                     self.audio = np.concatenate((self.audio, frame), axis=1)
                     self.frame = frame

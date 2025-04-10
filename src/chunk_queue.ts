@@ -8,18 +8,29 @@ class ChunkQueue {
 
   constructor() { }
 
-  public enqueue(chunk: Uint8Array): void {
-    if (this.queue.length < 2) {
-      this.queue.push(chunk)
-    } else {
-      const combined = new Uint8Array(this.queue[1].length + chunk.length)
-      combined.set(this.queue[1], 0)
-      combined.set(chunk, this.queue[1].length)
-      this.queue[1] = combined
+  private mergeAllChunks(): Uint8Array {
+    if (this.queue.length === 0) return new Uint8Array(0)
+    let totalLength = 0
+    for (const chunk of this.queue) {
+      totalLength += chunk.length
     }
 
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of this.queue) {
+      merged.set(chunk, offset)
+      offset += chunk.length
+    }
+    return merged
+  }
+
+  public enqueue(chunk: Uint8Array): void {
+    this.queue.push(chunk)
+
     if (this.resolveDequeue) {
-      this.resolveDequeue(this.queue.shift()!)
+      const merged = this.mergeAllChunks()
+      this.resolveDequeue(merged)
+      this.queue.length = 0
       this.resolveDequeue = null
       this.waitingDequeue = null
     }
@@ -27,7 +38,9 @@ class ChunkQueue {
 
   public async dequeue(timeoutMs: number = 0): Promise<Uint8Array> {
     if (this.queue.length > 0) {
-      return this.queue.shift()!
+      const merged = this.mergeAllChunks()
+      this.queue.length = 0
+      return merged
     }
 
     if (!this.waitingDequeue) {

@@ -52,14 +52,13 @@ export class RecorderView extends DOMWidgetView {
   private _isCompleted = false
 
   private async _sendChunk() {
-    if (this._chunks.length > 0) {
-      // 1 seconds maximum wait time
-      const chunk = await this._chunks.dequeue(1000 + (this._recorder.timeSlice ?? 20))
-      if (chunk.length > 0) {
-        this.model.set('chunk', { array: chunk, shape: [chunk.length] })
-        this.model.save_changes()
-      }
-    } else if (this._isCompleted) {
+    // 1 seconds maximum wait time
+    const chunk = await this._chunks.dequeue(1000 + (this._recorder.timeSlice ?? 20))
+    if (chunk.length > 0) {
+      this.model.set('chunk', { array: chunk, shape: [chunk.length] })
+      this.model.save_changes()
+    }
+    if (this._isCompleted) {
       this.model.set('completed', true)
       this.model.save_changes()
     }
