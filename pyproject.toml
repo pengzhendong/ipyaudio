@@ -35,11 +35,11 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "audiolab>=0.0.8",
+    "audiolab>=0.2.0",
     "ipywidgets>=8.0.0",
     "ipydatawidgets>=4.3.5",
 ]
-version = "0.1.15"
+version = "0.1.16"
 
 [project.optional-dependencies]
 docs = [
@@ -113,7 +113,7 @@ file = [
 ]
 
 [tool.tbump.version]
-current = "0.1.15"
+current = "0.1.16"
 regex = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)((?P<channel>a|b|rc|.dev)(?P<release>\\d+))?"
 
 [tool.tbump.git]
