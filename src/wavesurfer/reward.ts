@@ -42,6 +42,15 @@ export function createRewardDropdown(language: string) {
   const dropdownItem = createElement('li', '')
   dropdownItem.appendChild(table)
   dropdownMenu.appendChild(dropdownItem)
+
+  const link = createElement('a') as HTMLAnchorElement
+  link.href = 'https://github.com/pengzhendong/ipyaudio'
+  link.target = '_blank'
+  const starBadge = createElement('img', 'img-fluid me-3') as HTMLImageElement
+  starBadge.src = 'https://img.shields.io/github/stars/pengzhendong/ipyaudio.svg'
+  link.appendChild(starBadge)
+
+  rewardDropdown.appendChild(link)
   rewardDropdown.appendChild(dropdownButton)
   rewardDropdown.appendChild(dropdownMenu)
   return rewardDropdown
