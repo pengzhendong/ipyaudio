@@ -32,6 +32,11 @@ def play(
 
 
 def record(
-    filename: str = None, config: dict = {}, player_config: dict = {}, language: str = "en", verbose: bool = False
+    filename: str = None,
+    config: dict = {},
+    player_config: dict = {},
+    sync: bool = False,
+    language: str = "en",
+    verbose: bool = False,
 ):
-    Recorder(filename, config, player_config, language, verbose)
+    Recorder(filename, config, player_config, sync, language, verbose)

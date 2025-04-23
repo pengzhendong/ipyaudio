@@ -4,5 +4,5 @@
 # Copyright (c) Zhendong Peng.
 # Distributed under the terms of the Modified BSD License.
 
-__version__ = "0.1.20"
+__version__ = "0.1.22"
 version_info = list(map(int, __version__.split(".")))
