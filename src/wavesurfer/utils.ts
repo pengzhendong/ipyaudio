@@ -3,7 +3,7 @@
 
 export const createElement = <T extends HTMLElement>(
   tagName: keyof HTMLElementTagNameMap,
-  className: string,
+  className: string = '',
   innerHTML: string = '',
 ): T => {
   const element = document.createElement(tagName) as T

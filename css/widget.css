@@ -14,10 +14,14 @@
   z-index: 11;
 }
 
-.duration {
-  right: 0;
-}
+.duration { right: 0 }
 
-.time {
-  left: 0;
+.time { left: 0 }
+
+.jp-OutputArea-output { overflow: visible }
+
+.dropdown-menu {
+  width: 500px;
+  position: relative !important;
+  transform: translateY(10px) !important;
 }

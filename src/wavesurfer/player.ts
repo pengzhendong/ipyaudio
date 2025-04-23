@@ -10,6 +10,7 @@ import TimelinePlugin, { TimelinePluginOptions } from 'wavesurfer.js/dist/plugin
 import ZoomPlugin, { ZoomPluginOptions } from 'wavesurfer.js/dist/plugins/zoom.js'
 
 import PCMPlayer from './pcm_player'
+import { createRewardDropdown } from './reward'
 import { createElement, createObjectURL, formatTime } from './utils'
 
 export interface PlayerConfig {
@@ -31,7 +32,6 @@ export default class Player {
   private _container: HTMLDivElement
   private _duration: HTMLDivElement
   private _currentTime: HTMLDivElement
-  private _downloadButton: HTMLButtonElement
   private _wavesurfer: WaveSurfer
   private _config: PlayerConfig
   // streaming
@@ -86,16 +86,16 @@ export default class Player {
   }
 
   createDownloadButton() {
-    this._downloadButton = createElement('button', 'btn btn-success my-3')
+    const downloadButton = createElement('button', 'btn btn-success my-3')
     const label = this._config.language === 'zh' ? '下载' : 'Download'
-    this._downloadButton.innerHTML = `${label} <i class="fa fa-download"></i>`
-    this.el.append(this._downloadButton)
-    this._downloadButton.onclick = () => {
+    downloadButton.innerHTML = `${label} <i class="fa fa-download"></i>`
+    downloadButton.onclick = () => {
       const link = document.createElement('a')
       link.href = this.url
       link.download = 'audio.wav'
       link.click()
     }
+    this.el.append(downloadButton)
   }
 
   static createPlugins(config: PlayerConfig) {
@@ -136,6 +136,7 @@ export default class Player {
     instance.createWaveSurfer()
     instance.createPCMPlayer()
     instance.createDownloadButton()
+    instance.el.appendChild(createRewardDropdown(config.language || 'en'))
     return instance
   }
 }

@@ -6,17 +6,19 @@ class ChunkQueue {
   private resolveDequeue: ((value: Uint8Array) => void) | null = null
   private waitingDequeue: Promise<Uint8Array> | null = null
 
-  constructor() { }
+  constructor() {}
 
   private mergeAllChunks(): Uint8Array {
-    if (this.queue.length === 0) return new Uint8Array(0)
+    if (this.queue.length === 0) {
+      return new Uint8Array(0)
+    }
     let totalLength = 0
     for (const chunk of this.queue) {
       totalLength += chunk.length
     }
 
-    const merged = new Uint8Array(totalLength);
-    let offset = 0;
+    const merged = new Uint8Array(totalLength)
+    let offset = 0
     for (const chunk of this.queue) {
       merged.set(chunk, offset)
       offset += chunk.length
@@ -57,11 +59,17 @@ class ChunkQueue {
           }
         }, timeoutMs)
 
-        this.waitingDequeue.then(() => {
-          if (timeout) clearTimeout(timeout);
-        }).catch(() => {
-          if (timeout) clearTimeout(timeout);
-        })
+        this.waitingDequeue
+          .then(() => {
+            if (timeout) {
+              clearTimeout(timeout)
+            }
+          })
+          .catch(() => {
+            if (timeout) {
+              clearTimeout(timeout)
+            }
+          })
       }
     }
     return this.waitingDequeue
