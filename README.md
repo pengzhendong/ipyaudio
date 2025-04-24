@@ -25,14 +25,36 @@ $ pip install ipyaudio
 
 ## Usage
 
+```python
+>>> !wget https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/aac/sample1.aac -O sample1.aac
+>>> audio_url = "https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/aac/sample1.aac"
+>>> audio_path = "sample1.aac"
+```
+
 ### Player
 
 - Play an audio from url
 
-![](images/url.png)
+![](images/player/url.png)
 
-- Play local audio
+- Play a local audio
 
-![](images/local.png)
+![](images/player/local.png)
+
+- Play a numpy ndarray
+
+![](images/player/numpy.png)
+
+- Play an audio stream
+
+![](images/player/stream.png)
 
 ### Recorder
+
+- Record an audio with callback function
+
+![](images/recorder/callback.png)
+
+- Record an audio to file
+
+![](images/recorder/save.png)
