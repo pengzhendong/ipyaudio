@@ -26,9 +26,8 @@ export class PCMPlayer {
     this._options = Object.assign({ channels: 1, sampleRate: 16000, flushTime: 100, language: 'en' }, options)
     this.playButton = createElement('button', 'btn btn-danger me-3 my-3', '<i class="fa fa-pause"></i>')
     this.playButton.onclick = () => {
+      this._isPlaying ? this.pause() : this.play()
       this._isPlaying = !this._isPlaying
-      this._isPlaying ? this.play() : this.pause()
-      this.playButton.innerHTML = `<i class="fa fa-${this._isPlaying ? 'pause' : 'play'}"></i>`
     }
 
     this._interval = window.setInterval(this.flush.bind(this), this._options.flushTime)
@@ -97,10 +96,12 @@ export class PCMPlayer {
 
   async play() {
     await this._audioCtx.resume()
+    this.playButton.innerHTML = `<i class="fa fa-pause"></i>`
   }
 
   async pause() {
     await this._audioCtx.suspend()
+    this.playButton.innerHTML = `<i class="fa fa-play"></i>`
   }
 
   volume(volume: number) {

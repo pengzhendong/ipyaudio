@@ -57,6 +57,13 @@ export class PlayerView extends DOMWidgetView {
       this.model.on('change:is_done', () => {
         this._player.setDone()
       })
+      this.model.on('msg:custom', async (msg: any) => {
+        if (msg.msg_type === 'play') {
+          this._player.play()
+        } else if (msg.msg_type === 'pause') {
+          this._player.pause()
+        }
+      })
     })
   }
 }

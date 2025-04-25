@@ -71,6 +71,22 @@ export default class Player {
     }
   }
 
+  play() {
+    if (this._config.isStreaming && !this._pcmPlayer.playButton.disabled) {
+      this._pcmPlayer.play()
+    } else {
+      this._wavesurfer.play()
+    }
+  }
+
+  pause() {
+    if (this._config.isStreaming && !this._pcmPlayer.playButton.disabled) {
+      this._pcmPlayer.pause()
+    } else {
+      this._wavesurfer.pause()
+    }
+  }
+
   setDone() {
     this._pcmPlayer.setDone()
   }

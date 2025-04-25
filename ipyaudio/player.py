@@ -6,6 +6,7 @@
 
 import asyncio
 import json
+import time
 from importlib.resources import files
 from pathlib import Path
 from types import AsyncGeneratorType, GeneratorType
@@ -74,6 +75,9 @@ class Player(DOMWidget, ValueWidget):
             display(VBox([self, self.html]))
         else:
             display(self)
+        # Wait for the player to be initialized
+        time.sleep(0.1)
+        self.load()
 
     def encode_chunk(self, idx, chunk, rate, timer: Timer):
         if self.is_streaming and self.verbose:
@@ -91,7 +95,7 @@ class Player(DOMWidget, ValueWidget):
         async for idx, chunk in enumerate(audio):
             self.encode_chunk(idx, chunk, rate, timer)
 
-    def play(self):
+    def load(self):
         timer = Timer(language=self.language)
         if isinstance(self._audio, (str, Path, np.ndarray, torch.Tensor, Cut, Recording)):
             # [num_channels, num_samples]
@@ -103,3 +107,9 @@ class Player(DOMWidget, ValueWidget):
             for idx, chunk in enumerate(self._audio):
                 self.encode_chunk(idx, chunk, self.rate, timer)
             self.is_done = True
+
+    def play(self):
+        self.send({"msg_type": "play"})
+
+    def pause(self):
+        self.send({"msg_type": "pause"})
