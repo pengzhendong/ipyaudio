@@ -35,7 +35,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "audiolab>=0.2.6",
+    "audiolab>=0.2.7",
     "ipywidgets>=8.0.0",
     "ipydatawidgets>=4.3.5",
 ]
