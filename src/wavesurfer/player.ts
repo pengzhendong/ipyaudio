@@ -15,7 +15,6 @@ import { createElement, createObjectURL, formatTime } from './utils'
 
 export interface PlayerConfig {
   options: WaveSurferOptions
-  isStreaming: boolean
   language?: string
   plugins?: string[]
   pluginOptions?: {
@@ -35,6 +34,7 @@ export default class Player {
   private _wavesurfer: WaveSurfer
   private _config: PlayerConfig
   // streaming
+  private _isStreaming: boolean = false
   private _pcmPlayer: PCMPlayer
 
   constructor(config: PlayerConfig) {
@@ -48,7 +48,7 @@ export default class Player {
   }
 
   get url() {
-    if (this._config.isStreaming) {
+    if (this._isStreaming) {
       return this._pcmPlayer.url
     } else {
       return createObjectURL(this._wavesurfer.getDecodedData())
@@ -56,14 +56,25 @@ export default class Player {
   }
 
   set sampleRate(rate: number) {
-    if (this._config.isStreaming) {
+    if (this._isStreaming) {
       this._pcmPlayer.sampleRate = rate
     }
     this._wavesurfer.options.sampleRate = rate
   }
 
+  init(isStreaming: boolean) {
+    this._isStreaming = isStreaming
+    if (isStreaming) {
+      this._pcmPlayer.reset()
+      this._pcmPlayer.playButton.hidden = false
+    } else {
+      this._pcmPlayer.playButton.hidden = true
+    }
+    this._wavesurfer.setTime(0)
+  }
+
   load(url: string) {
-    if (this._config.isStreaming) {
+    if (this._isStreaming) {
       this._pcmPlayer.feed(url)
       this._wavesurfer.load(this.url)
     } else {
@@ -72,7 +83,7 @@ export default class Player {
   }
 
   play() {
-    if (this._config.isStreaming && !this._pcmPlayer.playButton.disabled) {
+    if (this._isStreaming && !this._pcmPlayer.playButton.disabled) {
       this._pcmPlayer.play()
     } else {
       this._wavesurfer.play()
@@ -80,7 +91,7 @@ export default class Player {
   }
 
   pause() {
-    if (this._config.isStreaming && !this._pcmPlayer.playButton.disabled) {
+    if (this._isStreaming && !this._pcmPlayer.playButton.disabled) {
       this._pcmPlayer.pause()
     } else {
       this._wavesurfer.pause()
@@ -92,13 +103,12 @@ export default class Player {
   }
 
   createPCMPlayer() {
-    if (this._config.isStreaming) {
-      this._pcmPlayer = new PCMPlayer({
-        channels: 1,
-        sampleRate: this._config.options.sampleRate,
-      })
-      this.el.append(this._pcmPlayer.playButton)
-    }
+    this._pcmPlayer = new PCMPlayer({
+      channels: 1,
+      sampleRate: this._config.options.sampleRate,
+    })
+    this._pcmPlayer.playButton.hidden = true
+    this.el.append(this._pcmPlayer.playButton)
   }
 
   createDownloadButton() {

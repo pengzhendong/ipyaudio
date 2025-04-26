@@ -42,13 +42,9 @@ class Player(DOMWidget, ValueWidget):
 
     audio = Unicode("").tag(sync=True)
     rate = Int(16000).tag(sync=True)
-    is_streaming = Bool(False).tag(sync=True)
-    is_done = Bool(False).tag(sync=True)
 
     def __init__(
         self,
-        audio: Union[str, Path, np.ndarray, torch.Tensor, Cut, Recording, AsyncGeneratorType, GeneratorType],
-        rate: Optional[int] = None,
         config: dict = {},
         language: str = "en",
         verbose: bool = False,
@@ -60,11 +56,7 @@ class Player(DOMWidget, ValueWidget):
         self.language = language.lower()
         self.verbose = verbose
 
-        self._audio = audio
-        if rate is not None:
-            self.rate = rate
-        self.is_streaming = isinstance(audio, (AsyncGeneratorType, GeneratorType))
-        if self.is_streaming and self.verbose:
+        if self.verbose:
             self.duration = 0
             self.html = HTML()
             self.performance = {
@@ -75,12 +67,9 @@ class Player(DOMWidget, ValueWidget):
             display(VBox([self, self.html]))
         else:
             display(self)
-        # Wait for the player to be initialized
-        time.sleep(0.1)
-        self.load()
 
     def encode_chunk(self, idx, chunk, rate, timer: Timer):
-        if self.is_streaming and self.verbose:
+        if self.verbose:
             if idx == 0:
                 self.performance["latency"][1] = f"{int(timer.elapsed() * 1000)}ms"
             self.duration += chunk.shape[1] / rate
@@ -95,18 +84,27 @@ class Player(DOMWidget, ValueWidget):
         async for idx, chunk in enumerate(audio):
             self.encode_chunk(idx, chunk, rate, timer)
 
-    def load(self):
+    def load(
+        self,
+        audio: Union[str, Path, np.ndarray, torch.Tensor, Cut, Recording, AsyncGeneratorType, GeneratorType],
+        rate: Optional[int] = None,
+    ):
+        self._audio = audio
+        if rate is not None:
+            self.rate = rate
+        self.send({"msg_type": "init", "is_streaming": isinstance(audio, (AsyncGeneratorType, GeneratorType))})
+
         timer = Timer(language=self.language)
         if isinstance(self._audio, (str, Path, np.ndarray, torch.Tensor, Cut, Recording)):
             # [num_channels, num_samples]
             self.audio, self.rate = encode(self._audio, self.rate)
         elif isinstance(self._audio, AsyncGeneratorType):
             asyncio.create_task(self.async_encode(self._audio, self.rate, timer))
-            self.is_done = True
+            self.send({"msg_type": "set_done"})
         else:
             for idx, chunk in enumerate(self._audio):
                 self.encode_chunk(idx, chunk, self.rate, timer)
-            self.is_done = True
+            self.send({"msg_type": "set_done"})
 
     def play(self):
         self.send({"msg_type": "play"})

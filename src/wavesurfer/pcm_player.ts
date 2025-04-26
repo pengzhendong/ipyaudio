@@ -27,7 +27,6 @@ export class PCMPlayer {
     this.playButton = createElement('button', 'btn btn-danger me-3 my-3', '<i class="fa fa-pause"></i>')
     this.playButton.onclick = () => {
       this._isPlaying ? this.pause() : this.play()
-      this._isPlaying = !this._isPlaying
     }
 
     this._interval = window.setInterval(this.flush.bind(this), this._options.flushTime)
@@ -69,7 +68,6 @@ export class PCMPlayer {
     if (!this._samples.length) {
       return
     }
-    const isDone = this._isDone
     const bufferSource = this._audioCtx.createBufferSource()
     const length = this._samples.length / this._options.channels
     const audioBuffer = this._audioCtx.createBuffer(this._options.channels, length, this._options.sampleRate)
@@ -88,7 +86,9 @@ export class PCMPlayer {
     bufferSource.connect(this._gainNode)
     bufferSource.start(this._startTime)
     bufferSource.onended = () => {
-      this.playButton.disabled = isDone ? true : false
+      if (this._isDone && this._samples.length === 0 && this._startTime <= this._audioCtx.currentTime) {
+        this.playButton.disabled = true
+      }
     }
     this._startTime += audioBuffer.duration
     this._samples = new Int16Array(0)
@@ -96,16 +96,26 @@ export class PCMPlayer {
 
   async play() {
     await this._audioCtx.resume()
-    this.playButton.innerHTML = `<i class="fa fa-pause"></i>`
+    this.playButton.innerHTML = '<i class="fa fa-pause"></i>'
+    this._isPlaying = true
   }
 
   async pause() {
     await this._audioCtx.suspend()
-    this.playButton.innerHTML = `<i class="fa fa-play"></i>`
+    this.playButton.innerHTML = '<i class="fa fa-play"></i>'
+    this._isPlaying = false
   }
 
   volume(volume: number) {
     this._gainNode.gain.value = volume
+  }
+
+  reset() {
+    this._samples = new Int16Array(0)
+    this._allSamples = new Int16Array(0)
+    this.playButton.disabled = false
+    this._isDone = false
+    this.play()
   }
 
   destroy() {
@@ -113,6 +123,7 @@ export class PCMPlayer {
       clearInterval(this._interval)
     }
     this._samples = new Int16Array(0)
+    this._allSamples = new Int16Array(0)
     this._audioCtx.close()
   }
 }

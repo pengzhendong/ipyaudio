@@ -44,25 +44,25 @@ export class PlayerView extends DOMWidgetView {
   render() {
     super.render()
     this.displayed.then(async () => {
-      const config = {
-        isStreaming: this.model.get('is_streaming'),
-        language: this.model.get('language'),
-      }
+      const config = { language: this.model.get('language') }
       this._player = Player.create(merge({}, this.model.get('config'), config))
       this.el.appendChild(this._player.el)
-      this.model.on('change:audio', () => {
-        this._player.sampleRate = this.model.get('rate')
-        this._player.load(this.model.get('audio'))
-      })
-      this.model.on('change:is_done', () => {
-        this._player.setDone()
-      })
+
       this.model.on('msg:custom', async (msg: any) => {
-        if (msg.msg_type === 'play') {
+        if (msg.msg_type === 'init') {
+          this._player.init(msg.is_streaming)
+        } else if (msg.msg_type === 'set_done') {
+          this._player.setDone()
+        } else if (msg.msg_type === 'play') {
           this._player.play()
         } else if (msg.msg_type === 'pause') {
           this._player.pause()
         }
+      })
+
+      this.model.on('change:audio', () => {
+        this._player.sampleRate = this.model.get('rate')
+        this._player.load(this.model.get('audio'))
       })
     })
   }

@@ -3,9 +3,10 @@
 # ipyaudio
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/pengzhendong/ipyaudio/HEAD?urlpath=%2Fdoc%2Ftree%2Fexamples%2Fintroduction.ipynb)
+[![NPM](https://img.shields.io/npm/v/ipyaudio.svg)](https://www.npmjs.com/package/ipyaudio)
 [![PyPI](https://img.shields.io/pypi/v/ipyaudio.svg)](https://pypi.org/project/ipyaudio)
-[![PyPI Downloads](https://static.pepy.tech/badge/ipyaudio)](https://pepy.tech/projects/ipyaudio)
 [![Release](https://img.shields.io/github/release/pengzhendong/ipyaudio.svg)](https://github.com/pengzhendong/ipyaudio/releases)
+[![PyPI Downloads](https://static.pepy.tech/badge/ipyaudio)](https://pepy.tech/projects/ipyaudio)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Build Status](https://travis-ci.org/pengzhendong/ipyaudio.svg?branch=master)](https://travis-ci.org/pengzhendong/ipyaudio)
 [![codecov](https://codecov.io/gh/pengzhendong/ipyaudio/branch/master/graph/badge.svg)](https://codecov.io/gh/pengzhendong/ipyaudio)
