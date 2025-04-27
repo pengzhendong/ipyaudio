@@ -17,9 +17,3 @@
 .duration { right: 0 }
 
 .time { left: 0 }
-
-.dropdown-menu {
-  width: 500px;
-  position: relative !important;
-  transform: translateY(10px) !important;
-}

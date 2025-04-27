@@ -5,13 +5,14 @@ import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 import { createElement } from './utils'
 
 export function createRewardDropdown(language: string) {
-  const rewardDropdown = createElement('div', 'dropdown my-3 float-end text-end')
+  const rewardDropdown = createElement('div', 'dropup my-3 float-end text-end')
   const dropdownButton = createElement('button', 'btn btn-warning dropdown-toggle')
   dropdownButton.setAttribute('data-bs-toggle', 'dropdown')
   dropdownButton.innerHTML =
     language === 'zh' ? '<i class="fa fa-thumbs-o-up"></i> 赞赏' : '<i class="fa fa-coffee"></i> Buy me a coffee'
 
   const dropdownMenu = createElement('ul', 'dropdown-menu p-2')
+  dropdownMenu.style.width = '250px'
   const url = 'https://modelscope.cn/models/pengzhendong/pengzhendong/resolve/master/images'
   const rewards = [
     {
