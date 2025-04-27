@@ -7,8 +7,12 @@ export const createElement = <T extends HTMLElement>(
   innerHTML: string = '',
 ): T => {
   const element = document.createElement(tagName) as T
-  element.className = className
-  element.innerHTML = innerHTML
+  if (className !== '') {
+    element.className = className
+  }
+  if (innerHTML !== '') {
+    element.innerHTML = innerHTML
+  }
   return element
 }
 

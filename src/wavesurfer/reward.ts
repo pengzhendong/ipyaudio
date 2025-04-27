@@ -39,9 +39,7 @@ export function createRewardDropdown(language: string) {
   })
   tbody.appendChild(imageRow)
   table.appendChild(tbody)
-  const dropdownItem = createElement('li', '')
-  dropdownItem.appendChild(table)
-  dropdownMenu.appendChild(dropdownItem)
+  dropdownMenu.appendChild(table)
 
   const link = createElement('a') as HTMLAnchorElement
   link.href = 'https://github.com/pengzhendong/ipyaudio'

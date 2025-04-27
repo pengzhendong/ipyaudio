@@ -72,10 +72,12 @@ class Recorder(DOMWidget, ValueWidget):
 
         self.audio = np.zeros((1, 0), dtype=np.float32)
         self.stream_reader = StreamReader(dtype=np.float32, rate=self.rate, to_mono=True, frame_size=1024)
+        self.filename = None
         self.writer = None
         if filename is not None:
             self.sync = True
-            self.writer = Writer(filename, self.rate, layout="mono")
+            self.filename = filename
+            self.writer = Writer(self.filename, self.rate, layout="mono")
         self.observe(self._on_chunk_change, names="chunk")
         self.observe(self._on_completed_change, names="completed")
         self.observe(self._on_rate_change, names="rate")
@@ -127,6 +129,8 @@ class Recorder(DOMWidget, ValueWidget):
                 self.timer = Timer(language=self.language)
                 self.audio = np.zeros((1, 0), dtype=np.float32)
                 self.stream_reader.reset()
+                if self.filename is not None:
+                    self.writer = Writer(self.filename, self.rate, layout="mono")
         else:
             if self.sync:
                 if self.verbose:
