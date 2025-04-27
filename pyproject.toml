@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ipyaudio"
-description = "A Custom Jupyter Widget Library"
+description = "A Jupyter Widget for Web Audio Playing and Recording."
 readme = "README.md"
 license = { file = "LICENSE.txt" }
 requires-python = ">=3.9"
@@ -39,7 +39,7 @@ dependencies = [
     "ipywidgets>=8.0.0",
     "ipydatawidgets>=4.3.5",
 ]
-version = "0.1.26"
+version = "0.1.27"
 
 [project.optional-dependencies]
 docs = [
@@ -113,7 +113,7 @@ file = [
 ]
 
 [tool.tbump.version]
-current = "0.1.26"
+current = "0.1.27"
 regex = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)((?P<channel>a|b|rc|.dev)(?P<release>\\d+))?"
 
 [tool.tbump.git]

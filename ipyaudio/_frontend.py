@@ -9,4 +9,4 @@ Information about the frontend package of the widgets.
 """
 
 module_name = "ipyaudio"
-module_version = "^0.1.22"
+module_version = "^0.1.27"

@@ -1,7 +1,7 @@
 {
   "name": "ipyaudio",
-  "version": "0.1.22",
-  "description": "A Custom Jupyter Widget Library",
+  "version": "0.1.27",
+  "description": "A Jupyter Widget for Web Audio Playing and Recording.",
   "keywords": [
     "jupyter",
     "jupyterlab",
