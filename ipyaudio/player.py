@@ -76,9 +76,7 @@ class Player(DOMWidget, ValueWidget):
             if self.duration > 0:
                 self.performance["rtf"][1] = round(timer.elapsed() / self.duration, 2)
             self.html.value = table(self.performance)
-        if chunk.shape[0] > 1:
-            chunk = chunk.mean(axis=0, keepdims=True).astype(chunk.dtype)
-        self.audio, self.rate = encode(chunk, rate, make_wav=False)
+        self.audio, self.rate = encode(chunk, rate, make_wav=False, to_mono=True)
 
     async def async_encode(self, audio: AsyncGeneratorType, rate: int, timer: Timer):
         async for idx, chunk in enumerate(audio):
