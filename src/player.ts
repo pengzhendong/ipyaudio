@@ -49,8 +49,8 @@ export class PlayerView extends DOMWidgetView {
       this.el.appendChild(this._player.el)
 
       this.model.on('msg:custom', async (msg: any) => {
-        if (msg.msg_type === 'init') {
-          this._player.init(msg.is_streaming)
+        if (msg.msg_type === 'reset') {
+          this._player.reset(msg.is_streaming)
         } else if (msg.msg_type === 'set_done') {
           this._player.setDone()
         } else if (msg.msg_type === 'play') {

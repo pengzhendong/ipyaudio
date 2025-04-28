@@ -92,7 +92,7 @@ class Player(DOMWidget, ValueWidget):
         self._audio = audio
         if rate is not None:
             self.rate = rate
-        self.send({"msg_type": "init", "is_streaming": isinstance(audio, (AsyncGeneratorType, GeneratorType))})
+        self.send({"msg_type": "reset", "is_streaming": isinstance(audio, (AsyncGeneratorType, GeneratorType))})
 
         timer = Timer(language=self.language)
         if isinstance(self._audio, (str, Path, np.ndarray, torch.Tensor, Cut, Recording)):

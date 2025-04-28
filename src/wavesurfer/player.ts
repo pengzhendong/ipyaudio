@@ -28,11 +28,17 @@ export interface PlayerConfig {
 
 export default class Player {
   public el: HTMLDivElement
+  private _config: PlayerConfig
   private _container: HTMLDivElement
   private _duration: HTMLDivElement
   private _currentTime: HTMLDivElement
   private _wavesurfer: WaveSurfer
-  private _config: PlayerConfig
+  /** After wavesurfer is created */
+  private _isInitialized: boolean = false
+  private _initPromise: Promise<void>
+  /** When the audio is both decoded and can play */
+  private _isReady: boolean = false
+  private _readyPromise: Promise<void>
   // streaming
   private _isStreaming: boolean = false
   private _pcmPlayer: PCMPlayer
@@ -50,9 +56,8 @@ export default class Player {
   get url() {
     if (this._isStreaming) {
       return this._pcmPlayer.url
-    } else {
-      return createObjectURL(this._wavesurfer.getDecodedData())
     }
+    return createObjectURL(this._wavesurfer.getDecodedData())
   }
 
   set sampleRate(rate: number) {
@@ -62,7 +67,7 @@ export default class Player {
     this._wavesurfer.options.sampleRate = rate
   }
 
-  init(isStreaming: boolean) {
+  reset(isStreaming: boolean) {
     this._isStreaming = isStreaming
     if (isStreaming) {
       this._pcmPlayer.reset()
@@ -70,22 +75,28 @@ export default class Player {
     } else {
       this._pcmPlayer.playButton.hidden = true
     }
+    this._isReady = false
     this._wavesurfer.setTime(0)
   }
 
-  load(url: string) {
+  async load(url: string) {
     if (this._isStreaming) {
       this._pcmPlayer.feed(url)
-      this._wavesurfer.load(this.url)
-    } else {
-      this._wavesurfer.load(url)
+      url = this.url
     }
+    if (!this._isInitialized) {
+      await this._initPromise
+    }
+    this._wavesurfer.load(url)
   }
 
-  play() {
+  async play() {
     if (this._isStreaming && !this._pcmPlayer.playButton.disabled) {
       this._pcmPlayer.play()
     } else {
+      if (!this._isReady) {
+        await this._readyPromise
+      }
       this._wavesurfer.play()
     }
   }
@@ -151,6 +162,20 @@ export default class Player {
       ...this._config.options,
       container: this._container,
       plugins: Player.createPlugins(this._config),
+    })
+    this._initPromise = new Promise((resolve, reject) => {
+      this._wavesurfer.on('init', () => {
+        this._isInitialized = true
+        resolve()
+      })
+      this._wavesurfer.on('error', (err) => reject(err))
+    })
+    this._readyPromise = new Promise((resolve, reject) => {
+      this._wavesurfer.on('ready', () => {
+        this._isReady = true
+        resolve()
+      })
+      this._wavesurfer.on('error', (err) => reject(err))
     })
     this._wavesurfer.on('interaction', () => this._wavesurfer.playPause())
     this._wavesurfer.on('decode', (time) => (this._duration.textContent = formatTime(time)))
