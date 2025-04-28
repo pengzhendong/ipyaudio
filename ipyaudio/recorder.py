@@ -82,7 +82,6 @@ class Recorder(DOMWidget, ValueWidget):
         self.observe(self._on_completed_change, names="completed")
         self.observe(self._on_rate_change, names="rate")
         if self.sync and self.verbose:
-            self.html = HTML()
             self.performance = {
                 "state": ["状态" if self.language == "zh" else "State", ""],
                 "chunk": ["接收数据" if self.language == "zh" else "Received Data", "0B/0.00KB"],
@@ -90,7 +89,7 @@ class Recorder(DOMWidget, ValueWidget):
                 "latency": ["延迟" if self.language == "zh" else "Latency", "0ms"],
                 "rtf": ["实时率" if self.language == "zh" else "Real-Time Factor", 0],
             }
-            self.html.value = table(self.performance)
+            self.html = HTML(table(self.performance))
             display(VBox([self, self.html]))
         else:
             display(self)

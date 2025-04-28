@@ -12,6 +12,7 @@ template = """<table class="table table-bordered border-black">
         <th>{{ dict[key][0] }}</th>
         {%- endfor %}
     </tr>
+    <tr>
         {%- for key in dict.keys() %}
         <td>{{ dict[key][1] }}</td>
         {%- endfor %}

@@ -58,12 +58,11 @@ class Player(DOMWidget, ValueWidget):
 
         if self.verbose:
             self.duration = 0
-            self.html = HTML()
             self.performance = {
                 "latency": ["延迟" if self.language == "zh" else "Latency", "0ms"],
                 "rtf": ["实时率" if self.language == "zh" else "Real-Time Factor", "0.00"],
             }
-            self.html.value = table(self.performance)
+            self.html = HTML(table(self.performance))
             display(VBox([self, self.html]))
         else:
             display(self)
