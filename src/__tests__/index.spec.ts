@@ -6,21 +6,30 @@
 
 import { createTestModel } from './utils'
 
-import { ExampleModel } from '..'
+import { PlayerModel, RecorderModel } from '..'
 
-describe('Example', () => {
-  describe('ExampleModel', () => {
-    it('should be createable', () => {
-      const model = createTestModel(ExampleModel)
-      expect(model).toBeInstanceOf(ExampleModel)
-      expect(model.get('value')).toEqual('Hello World')
-    })
-
+describe('Player', () => {
+  describe('PlayerModel', () => {
     it('should be createable with a value', () => {
-      const state = { value: 'Foo Bar!' }
-      const model = createTestModel(ExampleModel, state)
-      expect(model).toBeInstanceOf(ExampleModel)
-      expect(model.get('value')).toEqual('Foo Bar!')
+      const state = { audio: 'https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/aac/sample1.aac' }
+      const model = createTestModel(PlayerModel, state)
+      expect(model).toBeInstanceOf(PlayerModel)
+      expect(model.get('rate')).toEqual(16000)
+    })
+  })
+})
+
+describe('Recorder', () => {
+  describe('RecorderModel', () => {
+    it('should be createable', () => {
+      const model = createTestModel(RecorderModel)
+      expect(model).toBeInstanceOf(RecorderModel)
+      expect(model.get('sync')).toEqual(false)
+    })
+    it('should be createable with a filename', () => {
+      const model = createTestModel(RecorderModel, { filename: 'audio.wav' })
+      expect(model).toBeInstanceOf(RecorderModel)
+      expect(model.get('sync')).toEqual(true)
     })
   })
 })
