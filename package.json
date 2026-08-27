@@ -29,19 +29,19 @@
     "url": "git+https://github.com/pengzhendong/ipyaudio.git"
   },
   "scripts": {
-    "build": "jlpm run build:lib && jlpm run build:nbextension && jlpm run build:labextension:dev",
-    "build:prod": "jlpm run build:lib && jlpm run build:nbextension && jlpm run build:labextension",
+    "build": "npm run build:lib && npm run build:nbextension && npm run build:labextension:dev",
+    "build:prod": "npm run build:lib && npm run build:nbextension && npm run build:labextension",
     "build:labextension": "jupyter labextension build .",
     "build:labextension:dev": "jupyter labextension build --development True .",
     "build:lib": "tsc",
     "build:nbextension": "webpack",
-    "clean": "jlpm run clean:lib && jlpm run clean:nbextension && jlpm run clean:labextension",
+    "clean": "npm run clean:lib && npm run clean:nbextension && npm run clean:labextension",
     "clean:lib": "rimraf lib",
     "clean:labextension": "rimraf ipyaudio/labextension",
     "clean:nbextension": "rimraf ipyaudio/nbextension/static/index.js",
     "lint": "eslint . --ext .ts,.tsx --fix",
     "lint:check": "eslint . --ext .ts,.tsx",
-    "prepack": "jlpm run build:lib",
+    "prepack": "npm run build:lib",
     "test": "jest",
     "watch": "npm-run-all -p \"watch:*\"",
     "watch:lib": "tsc -w",
@@ -51,7 +51,6 @@
   "dependencies": {
     "@jupyter-widgets/base": "^1.1.10 || ^2 || ^3 || ^4 || ^5 || ^6",
     "bootstrap": "^5.3.5",
-    "jupyter-dataserializers": "^3.0.1",
     "lodash.merge": "^4.6.2"
   },
   "devDependencies": {
@@ -73,6 +72,7 @@
     "fs-extra": "^11.2.0",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "mkdirp": "^3.0.1",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.2.4",

@@ -26,7 +26,8 @@ export class PCMPlayer {
     this._options = Object.assign({ channels: 1, sampleRate: 16000, flushTime: 100, language: 'en' }, options)
     this.playButton = createElement('button', 'btn btn-danger me-3 my-3', '<i class="fa fa-pause"></i>')
     this.playButton.onclick = () => {
-      this._isPlaying ? this.pause() : this.play()
+      const action = this._isPlaying ? this.pause() : this.play()
+      void action.catch((error: unknown) => console.error('ipyaudio PCM player:', error))
     }
 
     this._interval = window.setInterval(this.flush.bind(this), this._options.flushTime)
@@ -53,8 +54,8 @@ export class PCMPlayer {
       bufferView[i] = binaryString.charCodeAt(i)
     }
     const data = new Int16Array(buffer)
-    this._samples = new Int16Array([...this._samples, ...data])
-    this._allSamples = new Int16Array([...this._allSamples, ...data])
+    this._samples = PCMPlayer.concat(this._samples, data)
+    this._allSamples = PCMPlayer.concat(this._allSamples, data)
   }
 
   get url() {
@@ -115,7 +116,7 @@ export class PCMPlayer {
     this._allSamples = new Int16Array(0)
     this.playButton.disabled = false
     this._isDone = false
-    this.play()
+    void this.play().catch((error: unknown) => console.error('ipyaudio PCM player:', error))
   }
 
   destroy() {
@@ -124,7 +125,14 @@ export class PCMPlayer {
     }
     this._samples = new Int16Array(0)
     this._allSamples = new Int16Array(0)
-    this._audioCtx.close()
+    void this._audioCtx.close().catch((error: unknown) => console.error('ipyaudio PCM player:', error))
+  }
+
+  private static concat(left: Int16Array, right: Int16Array): Int16Array {
+    const result = new Int16Array(left.length + right.length)
+    result.set(left)
+    result.set(right, left.length)
+    return result
   }
 }
 

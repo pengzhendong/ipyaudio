@@ -1,26 +1,35 @@
-// Copyright (c) Jupyter Development Team.
+// Copyright (c) Zhendong Peng.
 // Distributed under the terms of the Modified BSD License.
 
-// Add any needed widget imports here (or from controls)
-// import {} from '@jupyter-widgets/base';
-
 import { createTestModel } from './utils'
+import { PlayerModel, RecorderModel } from '..'
 
-import { ExampleModel } from '..'
+describe('widget models', () => {
+  it('creates a player model', () => {
+    const model = createTestModel(PlayerModel)
+    expect(model).toBeInstanceOf(PlayerModel)
+  })
 
-describe('Example', () => {
-  describe('ExampleModel', () => {
-    it('should be createable', () => {
-      const model = createTestModel(ExampleModel)
-      expect(model).toBeInstanceOf(ExampleModel)
-      expect(model.get('value')).toEqual('Hello World')
-    })
+  it('preserves player events until a view starts consuming them', () => {
+    const model = createTestModel(PlayerModel)
+    model.trigger('msg:custom', { msg_type: 'reset', is_streaming: true })
+    model.set({ rate: 8000, audio: 'first-chunk' })
 
-    it('should be createable with a value', () => {
-      const state = { value: 'Foo Bar!' }
-      const model = createTestModel(ExampleModel, state)
-      expect(model).toBeInstanceOf(ExampleModel)
-      expect(model.get('value')).toEqual('Foo Bar!')
-    })
+    const events: unknown[] = []
+    model.setEventConsumer((event) => events.push(event))
+    model.set('audio', 'second-chunk')
+
+    expect(events).toEqual([
+      { type: 'message', value: { msg_type: 'reset', is_streaming: true } },
+      { type: 'audio', audio: 'first-chunk', rate: 8000 },
+      { type: 'audio', audio: 'second-chunk', rate: 8000 },
+    ])
+  })
+
+  it('creates a recorder model with explicit state defaults', () => {
+    const model = createTestModel(RecorderModel)
+    expect(model).toBeInstanceOf(RecorderModel)
+    expect(model.get('rate')).toBe(16000)
+    expect(model.get('completed')).toBe(true)
   })
 })

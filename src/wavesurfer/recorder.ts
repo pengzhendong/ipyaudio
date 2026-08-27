@@ -25,6 +25,7 @@ export default class Recorder {
   private _recordButton: HTMLButtonElement
   private _pauseButton: HTMLButtonElement
   private _player: Player
+  private _devicesReady: Promise<void> = Promise.resolve()
 
   constructor(config: RecorderConfig, playerConfig: PlayerConfig) {
     this.el = createElement('div', 'lm-Widget')
@@ -37,10 +38,6 @@ export default class Recorder {
 
   get sampleRate() {
     return this._wavesurfer.options.sampleRate
-  }
-
-  get timeSlice() {
-    return this._config.recordOptions?.mediaRecorderTimeslice
   }
 
   set sampleRate(rate: number) {
@@ -71,21 +68,24 @@ export default class Recorder {
 
   createMicSelect() {
     this._micSelect = createElement('select', 'form-select-sm d-inline-block me-3 my-3 w-50')
-    navigator.mediaDevices
+    this._devicesReady = navigator.mediaDevices
       .getUserMedia({ audio: true, video: false })
-      .then((stream) => {
-        RecordPlugin.getAvailableAudioDevices().then((devices: MediaDeviceInfo[]) => {
+      .then(async (stream) => {
+        try {
+          const devices = await RecordPlugin.getAvailableAudioDevices()
           devices.forEach((device: MediaDeviceInfo) => {
             const option = document.createElement('option')
             option.value = device.deviceId
             option.text = device.label || device.deviceId
             this._micSelect.appendChild(option)
           })
-        })
+        } finally {
+          stream.getTracks().forEach((track) => track.stop())
+        }
       })
-      .catch((err) => {
-        const label = this._config.language === 'zh' ? '访问麦克风失败' : 'Error accessing the microphone: '
-        throw new Error(label + (err as Error).message)
+      .catch((error: unknown) => {
+        const label = this._config.language === 'zh' ? '访问麦克风失败：' : 'Error accessing the microphone: '
+        throw new Error(label + (error instanceof Error ? error.message : String(error)))
       })
   }
 
@@ -115,19 +115,23 @@ export default class Recorder {
         this._container.style.display = 'none'
         this._player.el.style.display = 'block'
       } else {
-        this._wavesurfer.options.normalize = false
-        this.sampleRate = parseInt(this._rateSelect.value)
-        this._recorder.startRecording({ deviceId: this._micSelect.value }).then(() => {
-          this._pauseButton.disabled = false
-          this._rateSelect.disabled = true
-          this._micSelect.disabled = true
-          this._pauseButton.innerHTML = '<i class="fa fa-pause"></i>'
-          this._recordButton.innerHTML = '<i class="fa fa-stop"></i>'
-          this._container.style.display = 'block'
-          this._player.el.style.display = 'none'
-        })
+        void this.startRecording().catch((error: unknown) => console.error('ipyaudio recorder:', error))
       }
     }
+  }
+
+  private async startRecording(): Promise<void> {
+    await this._devicesReady
+    this._wavesurfer.options.normalize = false
+    this.sampleRate = parseInt(this._rateSelect.value)
+    await this._recorder.startRecording({ deviceId: this._micSelect.value })
+    this._pauseButton.disabled = false
+    this._rateSelect.disabled = true
+    this._micSelect.disabled = true
+    this._pauseButton.innerHTML = '<i class="fa fa-pause"></i>'
+    this._recordButton.innerHTML = '<i class="fa fa-stop"></i>'
+    this._container.style.display = 'block'
+    this._player.el.style.display = 'none'
   }
 
   onRecordStart(callback: () => void) {
@@ -143,18 +147,25 @@ export default class Recorder {
   }
 
   onRecordEnd(callback: (blob: Blob) => Promise<void>) {
-    this._recorder.on('record-end', async (blob) => {
-      this._player.load(URL.createObjectURL(blob))
-      this._recordButton.disabled = true
-      this._pauseButton.disabled = true
+    this._recorder.on('record-end', (blob) => {
+      void this.finishRecording(blob, callback).catch((error: unknown) => console.error('ipyaudio recorder:', error))
+    })
+  }
+
+  private async finishRecording(blob: Blob, callback: (blob: Blob) => Promise<void>): Promise<void> {
+    await this._player.load(URL.createObjectURL(blob))
+    this._recordButton.disabled = true
+    this._pauseButton.disabled = true
+    try {
       await callback(blob)
+    } finally {
       this._recordButton.disabled = false
       this._pauseButton.disabled = true
       this._rateSelect.disabled = false
       this._micSelect.disabled = false
       this._pauseButton.innerHTML = '<i class="fa fa-play"></i>'
       this._recordButton.innerHTML = '<i class="fa fa-microphone"></i>'
-    })
+    }
   }
 
   createRecorder() {
@@ -176,7 +187,9 @@ export default class Recorder {
     )
 
     this._recorder.on('record-pause', (blob) => {
-      this._player.load(URL.createObjectURL(blob))
+      void this._player
+        .load(URL.createObjectURL(blob))
+        .catch((error: unknown) => console.error('ipyaudio recorder:', error))
     })
 
     this._recorder.on('record-progress', (time) => {
@@ -189,5 +202,11 @@ export default class Recorder {
     instance.createWaveSurfer()
     instance.createRecorder()
     return instance
+  }
+
+  destroy() {
+    this._recorder?.destroy()
+    this._wavesurfer.destroy()
+    this._player.destroy()
   }
 }

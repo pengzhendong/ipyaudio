@@ -11,7 +11,7 @@ name = "ipyaudio"
 description = "A Jupyter Widget for Web Audio Playing and Recording."
 readme = "README.md"
 license = { file = "LICENSE.txt" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Zhendong Peng", email = "pzd17@tsinghua.org.cn" },
 ]
@@ -27,17 +27,15 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "audiolab>=0.2.8",
+    "audiolab>=0.5.2",
     "ipywidgets>=8.0.0",
     "ipydatawidgets>=4.3.5",
+    "numpy>=1.23",
 ]
 version = "0.1.31"
 
@@ -53,11 +51,7 @@ docs = [
     "sphinx_rtd_theme",
 ]
 examples = []
-test = [
-    "nbval",
-    "pytest-cov",
-    "pytest>=6.0",
-]
+test = ["pytest-cov", "pytest>=7.0"]
 
 [project.urls]
 Homepage = "https://github.com/pengzhendong/ipyaudio"
@@ -100,7 +94,7 @@ dependencies = [
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 path = "."
 build_cmd = "build:prod"
-npm = ["jlpm"]
+npm = ["npm"]
 
 [tool.tbump]
 field = [

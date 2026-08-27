@@ -1,38 +1,42 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 # Copyright (c) Zhendong Peng.
 # Distributed under the terms of the Modified BSD License.
 
-from pathlib import Path
-from types import AsyncGeneratorType, GeneratorType
-from typing import Optional, Union
+from __future__ import annotations
 
-import numpy as np
-import torch
-from lhotse import Recording
-from lhotse.cut.base import Cut
+from collections.abc import Mapping
+from os import PathLike
+from typing import Any
 
 from .player import Player
 from .recorder import Recorder
 
 
 def play(
-    audio: Union[str, Path, np.ndarray, torch.Tensor, Cut, Recording, AsyncGeneratorType, GeneratorType],
-    rate: Optional[int] = None,
-    config: dict = {},
+    audio: Any,
+    rate: int | None = None,
+    config: Mapping[str, Any] | None = None,
     language: str = "en",
     verbose: bool = False,
-):
-    Player(config, language, verbose).load(audio, rate)
+) -> Player:
+    """Display a player, load ``audio``, and return the controllable widget."""
+    player = Player(config=config, language=language, verbose=verbose)
+    return player.load(audio, rate)
 
 
 def record(
-    filename: str = None,
-    config: dict = {},
-    player_config: dict = {},
+    filename: str | PathLike[str] | None = None,
+    config: Mapping[str, Any] | None = None,
+    player_config: Mapping[str, Any] | None = None,
     sync: bool = False,
     language: str = "en",
     verbose: bool = False,
-):
-    Recorder(filename, config, player_config, sync, language, verbose)
+) -> Recorder:
+    """Display and return a recorder widget."""
+    return Recorder(
+        filename=filename,
+        config=config,
+        player_config=player_config,
+        sync=sync,
+        language=language,
+        verbose=verbose,
+    )

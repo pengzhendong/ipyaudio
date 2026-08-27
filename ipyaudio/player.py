@@ -1,33 +1,32 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 # Copyright (c) Zhendong Peng.
 # Distributed under the terms of the Modified BSD License.
 
-import asyncio
-import json
-import time
-from importlib.resources import files
-from pathlib import Path
-from types import AsyncGeneratorType, GeneratorType
-from typing import Optional, Union
+from __future__ import annotations
 
-import numpy as np
-import torch
+import asyncio
+from collections.abc import AsyncIterable, Iterator, Mapping
+from contextlib import suppress
+from typing import Any
+
 from audiolab import encode
 from IPython.display import display
 from ipywidgets import HTML, DOMWidget, ValueWidget, VBox, register
-from lhotse import Recording
-from lhotse.cut.base import Cut
 from traitlets import Bool, Dict, Int, Unicode
 
 from ._frontend import module_name, module_version
 from .timer import Timer
-from .utils import merge_dicts, table
+from .utils import load_config, performance_table
 
 
 @register
 class Player(DOMWidget, ValueWidget):
+    """Audio player widget with managed support for streamed audio.
+
+    Async streams run in one owned task. Use :meth:`wait_until_done` when the
+    producer's completion or exception matters, and :meth:`cancel_stream` when
+    replacing or abandoning it.
+    """
+
     _model_name = Unicode("PlayerModel").tag(sync=True)
     _model_module = Unicode(module_name).tag(sync=True)
     _model_module_version = Unicode(module_version).tag(sync=True)
@@ -36,7 +35,7 @@ class Player(DOMWidget, ValueWidget):
     _view_module = Unicode(module_name).tag(sync=True)
     _view_module_version = Unicode(module_version).tag(sync=True)
 
-    config = Dict({}).tag(sync=True)
+    config = Dict(default_value={}).tag(sync=True)
     language = Unicode("en").tag(sync=True)
     verbose = Bool(False).tag(sync=True)
 
@@ -45,66 +44,155 @@ class Player(DOMWidget, ValueWidget):
 
     def __init__(
         self,
-        config: dict = {},
+        config: Mapping[str, Any] | None = None,
         language: str = "en",
         verbose: bool = False,
-        **kwargs,
-    ):
+        *,
+        auto_display: bool = True,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
-        config_path = files("ipyaudio.configs").joinpath("player.json")
-        self.config = merge_dicts(json.loads(config_path.read_text(encoding="utf-8")), config)
+        self.config = load_config("player", config)
         self.language = language.lower()
         self.verbose = verbose
+        self._stream_task: asyncio.Task[None] | None = None
+        self._stream_error: BaseException | None = None
+        self._duration = 0.0
 
         if self.verbose:
-            self.duration = 0
-            self.performance = {
+            self._performance: dict[str, list[object]] = {
                 "latency": ["延迟" if self.language == "zh" else "Latency", "0ms"],
-                "rtf": ["实时率" if self.language == "zh" else "Real-Time Factor", "0.00"],
+                "rtf": [
+                    "实时率" if self.language == "zh" else "Real-Time Factor",
+                    "0.00",
+                ],
             }
-            self.html = HTML(table(self.performance))
-            display(VBox([self, self.html]))
-        else:
-            display(self)
+            self._status = HTML(performance_table(self._performance))
 
-    def encode_chunk(self, idx, chunk, rate, timer: Timer):
+        if auto_display:
+            self.display()
+
+    def display(self) -> None:
+        """Display the widget and, when enabled, its performance panel."""
+        display(VBox([self, self._status]) if self.verbose else self)
+
+    @property
+    def is_streaming(self) -> bool:
+        return self._stream_task is not None and not self._stream_task.done()
+
+    @property
+    def stream_error(self) -> BaseException | None:
+        return self._stream_error
+
+    def _encode_chunk(self, index: int, chunk: Any, rate: int, timer: Timer) -> None:
         if self.verbose:
-            if idx == 0:
-                self.performance["latency"][1] = f"{int(timer.elapsed() * 1000)}ms"
-            self.duration += chunk.shape[1] / rate
-            if self.duration > 0:
-                self.performance["rtf"][1] = round(timer.elapsed() / self.duration, 2)
-            self.html.value = table(self.performance)
-        self.audio, self.rate = encode(chunk, rate, make_wav=False, to_mono=True)
+            if index == 0:
+                self._performance["latency"][1] = f"{int(timer.elapsed() * 1000)}ms"
+            sample_count = chunk.shape[-1]
+            self._duration += sample_count / rate
+            self._performance["rtf"][1] = round(timer.elapsed() / self._duration, 2)
+            self._status.value = performance_table(self._performance)
+        self.audio, self.rate = encode(
+            chunk,
+            sample_rate=rate,
+            include_container=False,
+            to_mono=True,
+        )
 
-    async def async_encode(self, audio: AsyncGeneratorType, rate: int, timer: Timer):
-        async for idx, chunk in enumerate(audio):
-            self.encode_chunk(idx, chunk, rate, timer)
+    async def _consume_async_stream(
+        self, audio: AsyncIterable[Any], rate: int, timer: Timer
+    ) -> None:
+        try:
+            self.send({"msg_type": "reset", "is_streaming": True})
+            index = 0
+            async for chunk in audio:
+                self._encode_chunk(index, chunk, rate, timer)
+                index += 1
+        except asyncio.CancelledError:
+            self.send({"msg_type": "stream_cancelled"})
+            raise
+        except BaseException as error:
+            self._stream_error = error
+            self.send({"msg_type": "stream_error", "message": str(error)})
+            raise
+        else:
+            self.send({"msg_type": "stream_finished"})
+
+    def _consume_sync_stream(
+        self, audio: Iterator[Any], rate: int, timer: Timer
+    ) -> None:
+        try:
+            for index, chunk in enumerate(audio):
+                self._encode_chunk(index, chunk, rate, timer)
+        except BaseException as error:
+            self._stream_error = error
+            self.send({"msg_type": "stream_error", "message": str(error)})
+            raise
+        else:
+            self.send({"msg_type": "stream_finished"})
+
+    def _observe_stream_result(self, task: asyncio.Task[None]) -> None:
+        """Retrieve the result so an un-awaited task never becomes orphaned."""
+        if task.cancelled():
+            return
+        with suppress(BaseException):
+            task.exception()
 
     def load(
         self,
-        audio: Union[str, Path, np.ndarray, torch.Tensor, Cut, Recording, AsyncGeneratorType, GeneratorType],
-        rate: Optional[int] = None,
-    ):
-        self._audio = audio
+        audio: Any,
+        rate: int | None = None,
+    ) -> Player:
+        """Load a complete audio source or start consuming an audio stream."""
+        self.cancel_stream()
+        self._stream_task = None
+        self._stream_error = None
+        self._duration = 0.0
         if rate is not None:
             self.rate = rate
-        self.send({"msg_type": "reset", "is_streaming": isinstance(audio, (AsyncGeneratorType, GeneratorType))})
 
+        is_async_stream = isinstance(audio, AsyncIterable)
+        is_sync_stream = isinstance(audio, Iterator)
         timer = Timer(language=self.language)
-        if isinstance(self._audio, (str, Path, np.ndarray, torch.Tensor, Cut, Recording)):
-            # [num_channels, num_samples]
-            self.audio, self.rate = encode(self._audio, self.rate)
-        elif isinstance(self._audio, AsyncGeneratorType):
-            asyncio.create_task(self.async_encode(self._audio, self.rate, timer))
-            self.send({"msg_type": "set_done"})
-        else:
-            for idx, chunk in enumerate(self._audio):
-                self.encode_chunk(idx, chunk, self.rate, timer)
-            self.send({"msg_type": "set_done"})
 
-    def play(self):
+        if is_async_stream:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError as error:
+                raise RuntimeError(
+                    "Async audio streams require a running event loop; call load() from an async context."
+                ) from error
+            self._stream_task = loop.create_task(
+                self._consume_async_stream(audio, self.rate, timer),
+                name="ipyaudio-player-stream",
+            )
+            self._stream_task.add_done_callback(self._observe_stream_result)
+        elif is_sync_stream:
+            self.send({"msg_type": "reset", "is_streaming": True})
+            self._consume_sync_stream(audio, self.rate, timer)
+        else:
+            self.send({"msg_type": "reset", "is_streaming": False})
+            self.audio, self.rate = encode(audio, sample_rate=self.rate)
+        return self
+
+    async def wait_until_done(self) -> None:
+        """Wait for the active async stream and propagate its exception."""
+        if self._stream_task is not None:
+            await asyncio.shield(self._stream_task)
+
+    def cancel_stream(self) -> bool:
+        """Cancel the active async stream, returning whether one was cancelled."""
+        if self._stream_task is None or self._stream_task.done():
+            return False
+        self._stream_task.cancel()
+        return True
+
+    def play(self) -> None:
         self.send({"msg_type": "play"})
 
-    def pause(self):
+    def pause(self) -> None:
         self.send({"msg_type": "pause"})
+
+    def close(self) -> None:
+        self.cancel_stream()
+        super().close()

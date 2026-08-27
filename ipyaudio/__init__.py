@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 # Copyright (c) Zhendong Peng.
 # Distributed under the terms of the Modified BSD License.
 
@@ -8,6 +5,8 @@ from ._version import __version__, version_info
 from .player import Player
 from .recorder import Recorder
 from .widget import play, record
+
+__all__ = ["Player", "Recorder", "__version__", "play", "record", "version_info"]
 
 
 def _jupyter_labextension_paths():
@@ -46,4 +45,11 @@ def _jupyter_nbextension_paths():
     require: Path to importable AMD Javascript module inside the
         <jupyter path>/nbextensions/<dest> directory
     """
-    return [{"section": "notebook", "src": "nbextension", "dest": "ipyaudio", "require": "ipyaudio/extension"}]
+    return [
+        {
+            "section": "notebook",
+            "src": "nbextension",
+            "dest": "ipyaudio",
+            "require": "ipyaudio/extension",
+        }
+    ]

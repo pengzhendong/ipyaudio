@@ -33,12 +33,12 @@ export default class Player {
   private _duration: HTMLDivElement
   private _currentTime: HTMLDivElement
   private _wavesurfer: WaveSurfer
+  private _zoomPlugin?: ReturnType<typeof ZoomPlugin.create>
   /** After wavesurfer is created */
   private _isInitialized: boolean = false
   private _initPromise: Promise<void>
-  /** When the audio is both decoded and can play */
-  private _isReady: boolean = false
-  private _readyPromise: Promise<void>
+  /** The most recent decode/load operation. */
+  private _loadPromise: Promise<void> = Promise.resolve()
   // streaming
   private _isStreaming: boolean = false
   private _pcmPlayer: PCMPlayer
@@ -75,42 +75,46 @@ export default class Player {
     } else {
       this._pcmPlayer.playButton.hidden = true
     }
-    this._isReady = false
     this._wavesurfer.setTime(0)
   }
 
   async load(url: string) {
     if (this._isStreaming) {
       this._pcmPlayer.feed(url)
-      url = this.url
+      return
     }
     if (!this._isInitialized) {
       await this._initPromise
     }
-    this._wavesurfer.load(url)
+    this._loadPromise = this._wavesurfer.load(url)
+    await this._loadPromise
+    this.enableZoom()
   }
 
   async play() {
     if (this._isStreaming && !this._pcmPlayer.playButton.disabled) {
-      this._pcmPlayer.play()
+      await this._pcmPlayer.play()
     } else {
-      if (!this._isReady) {
-        await this._readyPromise
-      }
-      this._wavesurfer.play()
+      await this._loadPromise
+      await this._wavesurfer.play()
     }
   }
 
-  pause() {
+  async pause() {
     if (this._isStreaming && !this._pcmPlayer.playButton.disabled) {
-      this._pcmPlayer.pause()
+      await this._pcmPlayer.pause()
     } else {
-      this._wavesurfer.pause()
+      await this._wavesurfer.pause()
     }
   }
 
-  setDone() {
+  async setDone() {
     this._pcmPlayer.setDone()
+  }
+
+  destroy() {
+    this._pcmPlayer.destroy()
+    this._wavesurfer.destroy()
   }
 
   createPCMPlayer() {
@@ -150,11 +154,20 @@ export default class Player {
         }),
       spectrogram: () => SpectrogramPlugin.create(config.pluginOptions?.spectrogram),
       timeline: () => TimelinePlugin.create(config.pluginOptions?.timeline),
-      zoom: () => ZoomPlugin.create(config.pluginOptions?.zoom),
     }
     return Array.from(config.plugins ?? [])
       .map((plugin) => pluginMap[plugin as keyof typeof pluginMap]?.())
       .filter(Boolean) as GenericPlugin[]
+  }
+
+  private enableZoom() {
+    if (
+      this._zoomPlugin === undefined &&
+      this._config.plugins?.includes('zoom') &&
+      this._wavesurfer.getDuration() > 0
+    ) {
+      this._zoomPlugin = this._wavesurfer.registerPlugin(ZoomPlugin.create(this._config.pluginOptions?.zoom))
+    }
   }
 
   createWaveSurfer() {
@@ -166,13 +179,6 @@ export default class Player {
     this._initPromise = new Promise((resolve, reject) => {
       this._wavesurfer.on('init', () => {
         this._isInitialized = true
-        resolve()
-      })
-      this._wavesurfer.on('error', (err) => reject(err))
-    })
-    this._readyPromise = new Promise((resolve, reject) => {
-      this._wavesurfer.on('ready', () => {
-        this._isReady = true
         resolve()
       })
       this._wavesurfer.on('error', (err) => reject(err))

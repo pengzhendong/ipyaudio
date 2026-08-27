@@ -1,8 +1,10 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 # Copyright (c) Zhendong Peng.
 # Distributed under the terms of the Modified BSD License.
 
+import re
+
 __version__ = "0.1.31"
-version_info = list(map(int, __version__.split(".")))
+_version_match = re.match(r"^(\d+)\.(\d+)\.(\d+)", __version__)
+if _version_match is None:  # pragma: no cover - guarded by the release tooling
+    raise ValueError(f"Invalid version: {__version__}")
+version_info = tuple(int(part) for part in _version_match.groups())

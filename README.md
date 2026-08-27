@@ -59,3 +59,20 @@ $ pip install ipyaudio
 - Record an audio to file
 
 ![](images/recorder/save.png)
+
+### Streaming lifecycle
+
+`play()` and `record()` return their widget instances, so callers can control
+them directly. Async audio producers are owned by the player instead of being
+launched as an untracked background task:
+
+```python
+player = ipyaudio.play(audio_stream(), rate=16_000)
+
+await player.wait_until_done()  # propagates producer errors
+# player.cancel_stream()        # stop early when needed
+```
+
+Recorder chunks use an acknowledged binary transport. At most one chunk is in
+flight between the browser and Python, which provides backpressure even though
+Jupyter comm sends themselves are fire-and-forget.
