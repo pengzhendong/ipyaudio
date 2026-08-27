@@ -1,0 +1,242 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish, for example v0.1.32
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and verify distributions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Resolve release version
+        id: release
+        shell: bash
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([ab]|rc)[0-9]+$ && ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Verify release metadata
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import re
+          import tomllib
+
+          expected = os.environ["RELEASE_VERSION"]
+          root = pathlib.Path(".")
+          pyproject = tomllib.loads((root / "pyproject.toml").read_text())
+          package = json.loads((root / "package.json").read_text())
+          package_lock = json.loads((root / "package-lock.json").read_text())
+          python_version = re.search(
+              r'^__version__ = "([^"]+)"$',
+              (root / "ipyaudio/_version.py").read_text(),
+              re.MULTILINE,
+          ).group(1)
+          frontend_version = re.search(
+              r'^module_version = "\^([^"]+)"$',
+              (root / "ipyaudio/_frontend.py").read_text(),
+              re.MULTILINE,
+          ).group(1)
+
+          versions = {
+              "pyproject.toml": pyproject["project"]["version"],
+              "package.json": package["version"],
+              "package-lock.json": package_lock["version"],
+              "package-lock root package": package_lock["packages"][""]["version"],
+              "ipyaudio/_version.py": python_version,
+              "ipyaudio/_frontend.py": frontend_version,
+          }
+          mismatches = {name: version for name, version in versions.items() if version != expected}
+          if mismatches:
+              raise SystemExit(f"Release version {expected} does not match: {mismatches}")
+          print(f"All package metadata matches {expected}")
+          PY
+
+      - name: Install build and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine "jupyterlab>=4,<5"
+          npm ci
+
+      - name: Build frontend distributions
+        run: npm run build:prod
+
+      - name: Install and test Python package
+        run: |
+          python -m pip install -e ".[test]"
+          python -m pytest
+
+      - name: Test frontend
+        run: |
+          npm test -- --runInBand
+          npm run lint:check
+
+      - name: Build release distributions
+        run: |
+          mkdir -p release/python release/npm
+          python -m build --outdir release/python
+          npm pack --pack-destination release/npm
+          python -m twine check release/python/*
+
+      - name: Verify built distribution versions
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          python - <<'PY'
+          import email.parser
+          import json
+          import os
+          import pathlib
+          import tarfile
+          import zipfile
+
+          version = os.environ["RELEASE_VERSION"]
+          release = pathlib.Path("release")
+          wheel = next((release / "python").glob("*.whl"))
+          npm_archive = next((release / "npm").glob("*.tgz"))
+
+          with zipfile.ZipFile(wheel) as archive:
+              metadata_path = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
+              metadata = email.parser.BytesParser().parsebytes(archive.read(metadata_path))
+              labextension = json.loads(archive.read("ipyaudio/labextension/package.json"))
+          with tarfile.open(npm_archive) as archive:
+              npm_package = json.load(archive.extractfile("package/package.json"))
+
+          assert metadata["Version"] == version
+          assert labextension["version"] == version
+          assert npm_package["version"] == version
+          print(f"Built Python, JupyterLab, and npm distributions all match {version}")
+          PY
+
+      - name: Upload Python distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-distributions
+          path: release/python/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload npm distribution
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-distribution
+          path: release/npm/
+          if-no-files-found: error
+          retention-days: 7
+
+  pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/ipyaudio/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download Python distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-distributions
+          path: dist/
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          print-hash: true
+
+  npm:
+    name: Publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/ipyaudio/v/${{ needs.build.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Download npm distribution
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-distribution
+          path: dist/
+
+      - name: Publish package to npm
+        run: npm publish "dist/ipyaudio-${{ needs.build.outputs.version }}.tgz" --access public
+
+  github:
+    name: Attach distributions to GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Python distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-distributions
+          path: dist/
+
+      - name: Download npm distribution
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-distribution
+          path: dist/
+
+      - name: Upload GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
