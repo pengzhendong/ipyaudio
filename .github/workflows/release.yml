@@ -215,7 +215,7 @@ jobs:
           path: dist/
 
       - name: Publish package to npm
-        run: npm publish "dist/ipyaudio-${{ needs.build.outputs.version }}.tgz" --access public
+        run: npm publish "./dist/ipyaudio-${{ needs.build.outputs.version }}.tgz" --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
